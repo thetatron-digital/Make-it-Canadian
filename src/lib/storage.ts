@@ -9,6 +9,17 @@ export const newId = customAlphabet("23456789abcdefghijkmnpqrstuvwxyz", 8);
 
 const hasBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
+/**
+ * The local-disk fallback is only honest on a developer's machine. On a
+ * serverless host the filesystem is per-instance and thrown away, so a save
+ * would appear to work and then hand out a link that dies - worse than
+ * refusing. Say so instead.
+ */
+export function storageUnavailableReason(): string | null {
+  if (hasBlob() || !process.env.VERCEL) return null;
+  return "Saving is not set up on this deployment yet. Add a Blob store to the project in the Vercel dashboard (Storage → Blob → Connect), then redeploy.";
+}
+
 const configPath = (id: string) => `configs/${id}.json`;
 const avatarPath = (id: string) => `avatars/${id}.png`;
 

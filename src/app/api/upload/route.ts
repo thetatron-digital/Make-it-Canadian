@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { newId, readPngSize, saveAvatar } from "@/lib/storage";
+import { newId, readPngSize, saveAvatar, storageUnavailableReason } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic";
 const MAX_BYTES = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {
+  const unavailable = storageUnavailableReason();
+  if (unavailable) return NextResponse.json({ error: unavailable }, { status: 503 });
+
   let form: FormData;
   try {
     form = await request.formData();

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
-import { isValidId, newId, saveConfig } from "@/lib/storage";
+import { isValidId, newId, saveConfig, storageUnavailableReason } from "@/lib/storage";
 import { normalizeConfig } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const unavailable = storageUnavailableReason();
+  if (unavailable) return NextResponse.json({ error: unavailable }, { status: 503 });
+
   let body: unknown;
   try {
     body = await request.json();
