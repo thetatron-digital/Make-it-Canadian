@@ -1,19 +1,24 @@
 @tailwind base;
-@tailwind components;
 @tailwind utilities;
+@tailwind components;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  background: #0d0f14;
-  color: #f4f6fb;
+  background-color: #e7e6e1;
+  /* The old desktop pattern, at a fraction of its old contrast. */
+  background-image: radial-gradient(#d3d2cc 1px, transparent 1px);
+  background-size: 4px 4px;
+  color: #14141a;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* The live page is a video source, not a web page: no chrome of any kind. */
 body.live-surface {
   background: transparent !important;
+  background-image: none !important;
   margin: 0;
   overflow: hidden;
 }
@@ -23,83 +28,164 @@ body.live-surface::-webkit-scrollbar {
 }
 
 @layer components {
-  .panel {
-    @apply rounded-xl border border-edge bg-panel;
+  /* ---- Window chrome -------------------------------------------------- */
+
+  .window {
+    @apply overflow-hidden rounded-xl border-[1.5px] border-ink bg-paper shadow-window;
   }
 
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition
-           disabled:cursor-not-allowed disabled:opacity-50;
+  /* Title bar stripes, punched through by the label. */
+  .titlebar {
+    @apply flex items-center gap-2 border-b-[1.5px] border-ink px-2.5 py-2;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      #14141a 0,
+      #14141a 1px,
+      transparent 1px,
+      transparent 3px
+    );
   }
 
-  .btn-primary {
-    @apply btn bg-maple text-white hover:bg-red-600;
+  .titlebar-label {
+    @apply bg-paper px-2 py-0.5 font-display text-[11px] uppercase leading-none tracking-wide;
   }
 
-  .btn-secondary {
-    @apply btn border border-edge bg-edge/40 text-snow hover:bg-edge;
+  /* The decorative close box every Macintosh window had. */
+  .titlebar-box {
+    @apply h-3.5 w-3.5 shrink-0 border-[1.5px] border-ink bg-paper;
   }
 
-  .field-label {
-    @apply flex items-center justify-between text-sm font-medium text-snow;
+  /* ---- Grouped list rows ---------------------------------------------- */
+
+  .row {
+    @apply flex items-center justify-between gap-3 border-b border-hair px-4 py-3 last:border-b-0;
+  }
+
+  .row-stack {
+    @apply space-y-2 border-b border-hair px-4 py-3 last:border-b-0;
+  }
+
+  .row-label {
+    @apply text-[15px] font-medium leading-tight;
+  }
+
+  .row-value {
+    @apply font-mono text-[12px] tabular-nums text-quiet;
+  }
+
+  /* Anything the user has to read back literally. */
+  .literal {
+    @apply font-mono text-[13px] tracking-tight;
   }
 
   .hint {
-    @apply text-xs leading-relaxed text-slate-400;
+    @apply text-[13px] leading-snug text-quiet;
+  }
+
+  /* A single sentence of plain-language guidance, at the top of each step. */
+  .guide {
+    @apply border-b border-hair bg-desk/50 px-4 py-3 text-[14px] leading-snug text-ink;
+  }
+
+  /* ---- Buttons --------------------------------------------------------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border-[1.5px] border-ink px-4 py-2
+           text-[14px] font-semibold transition active:translate-x-px active:translate-y-px
+           active:shadow-none disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-primary {
+    @apply btn bg-maple text-paper shadow-key hover:bg-[#c01f26];
+  }
+
+  .btn-secondary {
+    @apply btn bg-paper text-ink shadow-key hover:bg-desk;
+  }
+
+  .btn-quiet {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold
+           text-quiet transition hover:bg-desk hover:text-ink;
   }
 
   .text-input {
-    @apply w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm text-snow outline-none
+    @apply w-full rounded-lg border-[1.5px] border-ink bg-paper px-3 py-2 text-[14px] outline-none
            focus:border-maple;
+  }
+
+  .select-input {
+    @apply w-full appearance-none rounded-lg border-[1.5px] border-ink bg-paper bg-[length:14px] bg-[right_10px_center]
+           bg-no-repeat px-3 py-2 pr-9 text-[14px] outline-none focus:border-maple;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2314141a' stroke-width='2'/%3E%3C/svg%3E");
   }
 }
 
-/* Sliders are the main control surface here, so they get to be chunky. */
+/* ---- Sliders: iOS proportions, Macintosh edges ------------------------- */
+
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 22px;
+  height: 26px;
   background: transparent;
   cursor: pointer;
 }
 
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
-  background: #252b38;
+  background: #d9d8d2;
+  border: 1px solid #c4c3bd;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  margin-top: -7px;
-  height: 20px;
-  width: 20px;
+  margin-top: -10px;
+  height: 24px;
+  width: 24px;
   border-radius: 999px;
-  background: #f4f6fb;
-  border: 3px solid #d8232a;
+  background: #ffffff;
+  border: 1.5px solid #14141a;
+  box-shadow: 1px 1px 0 rgba(20, 20, 26, 0.18);
 }
 
 input[type="range"]::-moz-range-track {
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
-  background: #252b38;
+  background: #d9d8d2;
+  border: 1px solid #c4c3bd;
 }
 
 input[type="range"]::-moz-range-thumb {
-  height: 20px;
-  width: 20px;
-  border: 3px solid #d8232a;
+  height: 22px;
+  width: 22px;
   border-radius: 999px;
-  background: #f4f6fb;
+  background: #ffffff;
+  border: 1.5px solid #14141a;
+  box-shadow: 1px 1px 0 rgba(20, 20, 26, 0.18);
 }
 
 input[type="color"] {
   padding: 0;
-  border: none;
+  border: 1.5px solid #14141a;
+  border-radius: 8px;
   background: none;
-  height: 34px;
-  width: 52px;
+  height: 32px;
+  width: 46px;
   cursor: pointer;
+}
+
+/* Disclosure triangles, the way they used to point. */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] .disclosure-arrow {
+  transform: rotate(90deg);
 }

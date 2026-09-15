@@ -97,6 +97,8 @@ export class MouthMotion {
 export function simulatedLevel(timeSec: number, amount: number): number {
   if (amount <= 0) return 0;
   const syllables = Math.abs(Math.sin(timeSec * 9.4) * Math.sin(timeSec * 3.1 + 0.7)) ** 0.7;
-  const breathing = Math.sin(timeSec * 0.55) > -0.6 ? 1 : 0;
+  // Gaps between sentences, about a second every four. Any longer and
+  // someone tuning the preview thinks the thing has frozen.
+  const breathing = Math.sin(timeSec * 1.6) > -0.75 ? 1 : 0;
   return amount * 0.45 * syllables * breathing;
 }

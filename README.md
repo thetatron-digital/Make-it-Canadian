@@ -35,6 +35,28 @@ Two controls shape the feel:
   is click-clacky and reacts to every syllable. It narrows the loudness range
   that counts as "wide open" and speeds up attack and release together.
 
+## The interface
+
+The editor is one screen, not a wizard: the preview stays pinned on the left
+while the right-hand column walks through four numbered steps, one open at a
+time. Each step opens with a single plain-language sentence, shows two or
+three controls, and folds everything else into a "Fine-tune" disclosure -
+so the default view is a short list of decisions rather than a wall of
+sliders. Nothing is locked: any step can be reopened at any point, and
+saving works from any state.
+
+Step three offers three presets - Calm, Chatty, Click-clack - which set
+motion mode, mouth positions, activity and the attack/release pair together,
+so nobody has to understand quantisation to get a good result.
+
+The skin is a 1984 Macintosh read through an iOS lens: paper windows with
+striped title bars and hard drop shadows on a dithered desk, holding
+grouped list rows with hairline separators, generous touch targets and a
+single accent colour. The bitmap display face (Silkscreen, self-hosted via
+`next/font`) is used strictly for chrome - window titles, step numbers,
+status labels. It has no lowercase, so it never renders user data: links,
+ids, hex colours and measured values are all monospace.
+
 ## Routes
 
 | Route | What it is |

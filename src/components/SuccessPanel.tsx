@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CopyButton } from "./ui";
+import { CopyButton, Window } from "./ui";
 import type { Box } from "@/lib/geometry";
 import { renderSize } from "@/lib/geometry";
 import { obsDimensions } from "@/lib/render";
@@ -27,58 +27,80 @@ export function SuccessPanel({
   const obs = obsDimensions(size.width, size.height);
 
   return (
-    <div className="panel space-y-5 border-emerald-500/40 bg-emerald-500/5 p-5">
-      <div>
-        <h2 className="text-xl font-black tracking-tight">Saved. Here is your OBS link.</h2>
-        <p className="mt-1 hint">Copy it now — there are no accounts here, so this link is the only way back in.</p>
+    <Window title="Saved">
+      <div className="guide">
+        Copy this link now. There are no accounts here, so it is the only way back in.
       </div>
 
-      <div className="space-y-2">
-        <label className="field-label" htmlFor="live-url">
-          <span>Your link</span>
+      <div className="row-stack">
+        <label className="row-label" htmlFor="live-url">
+          Your link
         </label>
         <div className="flex gap-2">
-          <input id="live-url" readOnly value={liveUrl} className="text-input font-mono text-xs" onFocus={(e) => e.target.select()} />
-          <CopyButton text={liveUrl} label="Copy link" />
+          <input
+            id="live-url"
+            readOnly
+            value={liveUrl}
+            className="text-input literal"
+            onFocus={(event) => event.target.select()}
+          />
+          <CopyButton text={liveUrl} label="Copy" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className="field-label" htmlFor="obs-width">
-            <span>Width</span>
-          </label>
+      <div className="row-stack">
+        <span className="row-label">Size for OBS</span>
+        <div className="grid grid-cols-2 gap-3">
           <div className="flex gap-2">
-            <input id="obs-width" readOnly value={obs.width} className="text-input" onFocus={(e) => e.target.select()} />
+            <label className="sr-only" htmlFor="obs-width">
+              Width
+            </label>
+            <input
+              id="obs-width"
+              readOnly
+              value={obs.width}
+              className="text-input literal"
+              onFocus={(event) => event.target.select()}
+            />
             <CopyButton text={String(obs.width)} />
           </div>
-        </div>
-        <div className="space-y-2">
-          <label className="field-label" htmlFor="obs-height">
-            <span>Height</span>
-          </label>
           <div className="flex gap-2">
-            <input id="obs-height" readOnly value={obs.height} className="text-input" onFocus={(e) => e.target.select()} />
+            <label className="sr-only" htmlFor="obs-height">
+              Height
+            </label>
+            <input
+              id="obs-height"
+              readOnly
+              value={obs.height}
+              className="text-input literal"
+              onFocus={(event) => event.target.select()}
+            />
             <CopyButton text={String(obs.height)} />
           </div>
         </div>
+        <p className="hint">
+          Width {obs.width}, height {obs.height}. Type these into OBS exactly.
+        </p>
       </div>
 
-      <ObsSteps />
+      <div className="row-stack">
+        <span className="row-label">Now, in OBS</span>
+        <ObsSteps />
+      </div>
 
-      <p className="rounded-lg bg-ink/60 p-3 text-sm text-emerald-300">
-        The background is already transparent in OBS. You do not need a green screen, and you do not need to key
+      <p className="border-b border-hair bg-blush px-4 py-3 text-[14px] leading-snug">
+        The background is already see-through in OBS. You do not need a green screen, and you do not need to key
         anything out.
       </p>
 
-      <p className="hint">
+      <p className="px-4 py-3 hint">
         Want to change it later?{" "}
-        <Link href={`/edit/${id}`} className="underline">
+        <Link href={`/edit/${id}`} className="font-semibold text-ink underline">
           Open the editor for this avatar
         </Link>
         . Bookmark that page — there is no login, so a lost link cannot be recovered.
       </p>
-    </div>
+    </Window>
   );
 }
 
@@ -90,10 +112,10 @@ export function ObsSteps() {
     "If you are asked to allow the microphone, click Allow. Leave every other setting alone.",
   ];
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-2.5">
       {steps.map((step, index) => (
-        <li key={step} className="flex gap-3 text-sm text-slate-200">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-maple text-xs font-bold text-white">
+        <li key={step} className="flex gap-3 text-[14px] leading-snug">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-ink bg-paper font-display text-[10px]">
             {index + 1}
           </span>
           <span>{step}</span>

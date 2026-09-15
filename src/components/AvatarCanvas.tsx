@@ -154,10 +154,10 @@ export function AvatarCanvas({
         {showTransparencyGrid && (
           <div
             aria-hidden
-            className="absolute inset-0 rounded-md opacity-40"
+            className="absolute inset-0 rounded-md opacity-70"
             style={{
               backgroundImage:
-                "linear-gradient(45deg, #1b1f29 25%, transparent 25%), linear-gradient(-45deg, #1b1f29 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1b1f29 75%), linear-gradient(-45deg, transparent 75%, #1b1f29 75%)",
+                "linear-gradient(45deg, #e7e6e1 25%, transparent 25%), linear-gradient(-45deg, #e7e6e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e7e6e1 75%), linear-gradient(-45deg, transparent 75%, #e7e6e1 75%)",
               backgroundSize: "18px 18px",
               backgroundPosition: "0 0, 0 9px, 9px -9px, -9px 0",
             }}
@@ -187,13 +187,21 @@ export function AvatarCanvas({
                 y1={guide.y1}
                 x2={guide.x2}
                 y2={guide.y2}
+                stroke="#ffffff"
+                strokeWidth={dragging ? 5 : 4}
+              />
+              <line
+                x1={guide.x1}
+                y1={guide.y1}
+                x2={guide.x2}
+                y2={guide.y2}
                 stroke="#d8232a"
                 strokeWidth={dragging ? 3 : 2}
                 strokeDasharray="7 5"
               />
-              <circle cx={guide.hingeX} cy={guide.hingeY} r={7} fill="#d8232a" stroke="#f4f6fb" strokeWidth={2} />
+              <circle cx={guide.hingeX} cy={guide.hingeY} r={7} fill="#d8232a" stroke="#ffffff" strokeWidth={2} />
             </svg>
-            <p className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 rounded bg-ink/80 px-2 py-1 text-[11px] text-slate-300">
+            <p className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 rounded-md border-[1.5px] border-ink bg-paper px-2 py-1 text-[11px] font-semibold">
               Drag the line to move the mouth
             </p>
           </div>

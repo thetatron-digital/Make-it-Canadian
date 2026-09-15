@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ObsSteps } from "@/components/SuccessPanel";
-import { SiteHeader } from "@/components/ui";
+import { SiteHeader, Window } from "@/components/ui";
 
 export const metadata: Metadata = {
   title: "Setup help — Make It Canadian",
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const TROUBLESHOOTING = [
   {
     problem: "The mouth never opens",
-    fix: "Either the wrong microphone is selected in the editor, or the threshold is too high. Open your editor link, press “Test my microphone”, and speak: if the green bar does not move, pick a different microphone from the list. If it does move but stays left of the red line, drag the threshold down.",
+    fix: "Either the wrong microphone is selected in the editor, or the threshold is too high. Open your editor link, press “Turn on my microphone”, and speak: if the green bar does not move, pick a different microphone from the list. If it does move but stays left of the red line, drag the threshold down.",
   },
   {
     problem: "The mouth never closes",
@@ -43,53 +43,66 @@ export default function HowPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-2xl space-y-10 px-4 py-12">
+      <main className="mx-auto max-w-2xl space-y-6 px-4 py-10">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Getting it into OBS</h1>
-          <p className="mt-2 text-slate-300">
+          <p className="mt-2 text-[16px] text-quiet">
             Start to finish this takes about two minutes, and you do not need to understand any of it.
           </p>
         </div>
 
-        <section className="panel space-y-4 p-5">
-          <h2 className="text-lg font-bold">Before you start</h2>
-          <ol className="space-y-2 text-sm text-slate-200">
-            <li>
-              1. <Link href="/edit" className="underline">Upload a PNG</Link>. A see-through background works best.
-            </li>
-            <li>2. Drag the line to where the mouth should split, and choose your microphone.</li>
-            <li>3. Press save. The app gives you a link and two numbers.</li>
+        <Window title="First, here">
+          <ol className="divide-y divide-hair">
+            {[
+              <>
+                Upload a PNG on the{" "}
+                <Link href="/edit" className="font-semibold underline">
+                  make one
+                </Link>{" "}
+                page. A see-through background works best.
+              </>,
+              "Drag the line to where the mouth should split.",
+              "Pick the microphone you stream on, and speak until the green bar moves.",
+              "Choose how lively the mouth is, then press save.",
+            ].map((step, index) => (
+              <li key={index} className="flex gap-3 px-4 py-3 text-[14px] leading-snug">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-ink bg-paper font-display text-[10px]">
+                  {index + 1}
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
           </ol>
-        </section>
+        </Window>
 
-        <section className="panel space-y-4 p-5">
-          <h2 className="text-lg font-bold">Then, in OBS</h2>
-          <ObsSteps />
-          <p className="rounded-lg bg-ink/60 p-3 text-sm text-emerald-300">
-            The background is already transparent in OBS. You do not need a green screen, and you do not need to key
+        <Window title="Then, in OBS">
+          <div className="p-4">
+            <ObsSteps />
+          </div>
+          <p className="border-t border-hair bg-blush px-4 py-3 text-[14px] leading-snug">
+            The background is already see-through in OBS. You do not need a green screen, and you do not need to key
             anything out.
           </p>
-        </section>
+        </Window>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-bold">When it misbehaves</h2>
-          <dl className="space-y-4">
+        <Window title="When it misbehaves">
+          <dl className="divide-y divide-hair">
             {TROUBLESHOOTING.map((item) => (
-              <div key={item.problem} className="panel p-4">
-                <dt className="font-semibold text-snow">{item.problem}</dt>
-                <dd className="mt-1 text-sm leading-relaxed text-slate-300">{item.fix}</dd>
+              <div key={item.problem} className="px-4 py-3">
+                <dt className="text-[15px] font-semibold">{item.problem}</dt>
+                <dd className="mt-1 hint">{item.fix}</dd>
               </div>
             ))}
           </dl>
-        </section>
+        </Window>
 
-        <section className="panel space-y-3 p-5">
-          <h2 className="text-lg font-bold">Keep your link safe</h2>
-          <p className="text-sm text-slate-300">
-            There is no login here. Your editor link — the one that looks like <span className="font-mono">/edit/abcd1234</span> —
-            is the only way back to your settings. Bookmark it, or paste it somewhere you will find it again.
+        <Window title="Keep your link safe">
+          <p className="px-4 py-3 text-[14px] leading-snug">
+            There is no login here. Your editor link — the one that looks like{" "}
+            <span className="literal">/edit/abcd1234</span> — is the only way back to your settings.
+            Bookmark it, or paste it somewhere you will find it again.
           </p>
-        </section>
+        </Window>
       </main>
     </div>
   );

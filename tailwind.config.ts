@@ -5,14 +5,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0d0f14",
-        panel: "#161a23",
-        edge: "#252b38",
+        // A 1984 desktop: paper windows on a grey desk, hairlines instead of
+        // boxes, and one accent colour used sparingly.
+        paper: "#ffffff",
+        desk: "#e7e6e1",
+        ink: "#14141a",
+        quiet: "#6b6b75",
+        hair: "#d9d8d2",
         maple: "#d8232a",
-        snow: "#f4f6fb",
+        blush: "#fdeeed",
+        mint: "#0a7d55",
       },
       fontFamily: {
-        sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "SF Pro Text",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        display: ["var(--font-display)", "ui-monospace", "monospace"],
+      },
+      boxShadow: {
+        window: "3px 3px 0 rgba(20, 20, 26, 0.10)",
+        key: "2px 2px 0 rgba(20, 20, 26, 0.22)",
       },
     },
   },

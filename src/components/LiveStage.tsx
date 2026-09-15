@@ -102,7 +102,7 @@ export function LiveStage({ id }: { id: string }) {
         />
       )}
       {micProblem && (
-        <div className="absolute inset-x-0 bottom-0 bg-maple/95 px-4 py-3 text-center text-sm font-semibold text-white">
+        <div className="absolute inset-x-0 bottom-0 border-t-[1.5px] border-ink bg-maple px-4 py-3 text-center text-sm font-semibold text-paper">
           {micProblem}
         </div>
       )}
@@ -113,7 +113,7 @@ export function LiveStage({ id }: { id: string }) {
 function Notice({ title, body }: { title: string; body: string }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center p-6">
-      <div className="max-w-sm rounded-xl bg-maple px-5 py-4 text-center text-white">
+      <div className="max-w-sm rounded-xl border-[1.5px] border-ink bg-maple px-5 py-4 text-center text-paper shadow-window">
         <p className="text-lg font-black">{title}</p>
         <p className="mt-1 text-sm opacity-90">{body}</p>
       </div>
