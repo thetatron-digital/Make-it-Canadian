@@ -1,0 +1,102 @@
+import type { AvatarConfig } from "./types";
+
+/**
+ * Loudness range above the gate that counts as "full volume", at activity 0
+ * and at activity 100. A narrow range means quiet speech already pushes the
+ * mouth to its widest position, which is what makes it feel chatty.
+ */
+const SPAN_CALM = 0.3;
+const SPAN_CHATTY = 0.06;
+
+/** Attack/release multiplier at activity 0 and at activity 100. */
+const TIME_SCALE_CALM = 2;
+const TIME_SCALE_CHATTY = 0.4;
+
+/** Fraction of one step a value must overshoot before the mouth changes position. */
+const SNAP_HYSTERESIS = 0.28;
+
+export function activitySpan(activity: number): number {
+  return SPAN_CALM + (SPAN_CHATTY - SPAN_CALM) * (activity / 100);
+}
+
+export function activityTimeScale(activity: number): number {
+  return TIME_SCALE_CALM + (TIME_SCALE_CHATTY - TIME_SCALE_CALM) * (activity / 100);
+}
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/**
+ * Turns a raw microphone level into the 0-1 amount the mouth is open.
+ *
+ * Chain: noise gate -> loudness span scaled by activity -> attack/release
+ * smoothing -> quantise to the chosen number of mouth positions. Keeping it
+ * in one place means the simulate slider in the editor drives exactly the
+ * same maths as a real microphone does on the live page.
+ */
+export class MouthMotion {
+  /** Continuous, pre-quantisation value. */
+  private smoothed = 0;
+  /** Which discrete position the mouth currently sits on, in snap mode. */
+  private step = 0;
+
+  reset(): void {
+    this.smoothed = 0;
+    this.step = 0;
+  }
+
+  /** The smoothed value before quantisation, handy for meters. */
+  get raw(): number {
+    return this.smoothed;
+  }
+
+  update(level: number, dtMs: number, config: AvatarConfig): number {
+    const target = this.gate(level, config);
+    const timeScale = activityTimeScale(config.activity);
+    const tau = Math.max(1, (target > this.smoothed ? config.attackMs : config.releaseMs) * timeScale);
+    // Exponential approach, framerate independent.
+    const coefficient = 1 - Math.exp(-Math.max(0, dtMs) / tau);
+    this.smoothed += (target - this.smoothed) * coefficient;
+    if (Math.abs(this.smoothed) < 1e-4) this.smoothed = 0;
+
+    if (config.motionMode === "smooth") return clamp01(this.smoothed);
+    return this.quantize(clamp01(this.smoothed), config.snapSteps);
+  }
+
+  /** Noise gate plus the activity-scaled loudness span. */
+  private gate(level: number, config: AvatarConfig): number {
+    if (!Number.isFinite(level) || level <= config.threshold) return 0;
+    return clamp01((level - config.threshold) / activitySpan(config.activity));
+  }
+
+  /**
+   * Snap to one of N evenly spaced positions. The hysteresis stops a value
+   * that sits right on a boundary from buzzing between two positions - the
+   * mouth has to mean it before it moves.
+   */
+  private quantize(value: number, steps: number): number {
+    const count = Math.max(2, Math.round(steps));
+    const stepSize = 1 / (count - 1);
+    const exact = value / stepSize;
+    const target = Math.round(exact);
+    if (target !== this.step && Math.abs(exact - this.step) > 0.5 + SNAP_HYSTERESIS) {
+      this.step = Math.min(count - 1, Math.max(0, target));
+    }
+    return this.step * stepSize;
+  }
+}
+
+/**
+ * A stand-in for a microphone so the editor can be tuned in silence. It
+ * fakes a speech envelope - syllables inside phrases, with breaths between
+ * them - rather than a steady tone, because a steady tone would hide
+ * exactly the chatter that the motion settings exist to control.
+ *
+ * @param amount 0-1, from the simulate slider.
+ * @returns A level on the same scale as a real microphone's RMS.
+ */
+export function simulatedLevel(timeSec: number, amount: number): number {
+  if (amount <= 0) return 0;
+  const syllables = Math.abs(Math.sin(timeSec * 9.4) * Math.sin(timeSec * 3.1 + 0.7)) ** 0.7;
+  const breathing = Math.sin(timeSec * 0.55) > -0.6 ? 1 : 0;
+  return amount * 0.45 * syllables * breathing;
+}

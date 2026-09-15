@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #0d0f14;
+  color: #f4f6fb;
+}
+
+/* The live page is a video source, not a web page: no chrome of any kind. */
+body.live-surface {
+  background: transparent !important;
+  margin: 0;
+  overflow: hidden;
+}
+
+body.live-surface::-webkit-scrollbar {
+  display: none;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-edge bg-panel;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-maple text-white hover:bg-red-600;
+  }
+
+  .btn-secondary {
+    @apply btn border border-edge bg-edge/40 text-snow hover:bg-edge;
+  }
+
+  .field-label {
+    @apply flex items-center justify-between text-sm font-medium text-snow;
+  }
+
+  .hint {
+    @apply text-xs leading-relaxed text-slate-400;
+  }
+
+  .text-input {
+    @apply w-full rounded-lg border border-edge bg-ink px-3 py-2 text-sm text-snow outline-none
+           focus:border-maple;
+  }
+}
+
+/* Sliders are the main control surface here, so they get to be chunky. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #252b38;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -7px;
+  height: 20px;
+  width: 20px;
+  border-radius: 999px;
+  background: #f4f6fb;
+  border: 3px solid #d8232a;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #252b38;
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border: 3px solid #d8232a;
+  border-radius: 999px;
+  background: #f4f6fb;
+}
+
+input[type="color"] {
+  padding: 0;
+  border: none;
+  background: none;
+  height: 34px;
+  width: 52px;
+  cursor: pointer;
+}
