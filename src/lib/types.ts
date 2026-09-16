@@ -47,6 +47,10 @@ export interface AvatarConfig {
   releaseMs: number;
 
   motionMode: MotionMode;
+  /** Speed the flapping up when the speaker does. */
+  rushEnabled: boolean;
+  /** Hold the mouth open through a shout instead of flapping over it. */
+  shoutHold: boolean;
   /** How many positions the mouth is allowed to land on in snap mode, 2..8. */
   snapSteps: number;
   /**
@@ -82,6 +86,8 @@ export const DEFAULT_CONFIG: Omit<AvatarConfig, "imageUrl" | "imageWidth" | "ima
   attackMs: 40,
   releaseMs: 120,
   motionMode: "flap",
+  rushEnabled: true,
+  shoutHold: true,
   snapSteps: 3,
   activity: 50,
   mouthInterior: true,
@@ -182,6 +188,8 @@ export function normalizeConfig(raw: unknown): AvatarConfig | null {
     // "snap" was the old name for what was meant to be the cartoon flap but
     // behaved as a hold, so saved avatars move across to the real thing.
     motionMode: (motionMode === "smooth" ? "smooth" : motionMode === "hold" ? "hold" : "flap") as MotionMode,
+    rushEnabled: typeof r.rushEnabled === "boolean" ? r.rushEnabled : d.rushEnabled,
+    shoutHold: typeof r.shoutHold === "boolean" ? r.shoutHold : d.shoutHold,
     snapSteps: Math.round(num(r.snapSteps, d.snapSteps, LIMITS.snapSteps.min, LIMITS.snapSteps.max)),
     activity: num(r.activity, d.activity, LIMITS.activity.min, LIMITS.activity.max),
     mouthInterior: typeof r.mouthInterior === "boolean" ? r.mouthInterior : d.mouthInterior,

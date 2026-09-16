@@ -81,6 +81,36 @@ many mouth positions". Loudness decides which is most likely, but the
 opening the previous flap used is taken off the table entirely, so two
 flaps running never land on the same degree while any alternative exists.
 
+### Reacting to how someone talks
+
+Two things worth knowing fall out of loudness over time alone, with no need
+to recognise vowels, tones or words - which matters, because a rig with one
+degree of freedom has nowhere to put that detail anyway.
+
+**Speaking speed** is counted as syllable onsets: the level dipping and
+rising again. Past about 4.5 a second the flapping shortens its cycle and
+the openings spread out, so a rush reads as a rush. Measured on synthetic
+speech, 3.6/s reads as normal and 8.4/s as fast, and the same loudness at a
+slower pace is correctly not a rush.
+
+**A shout** is the level sitting well above the user's own gate for longer
+than any syllable could last - 280ms. The mouth then goes to its widest and
+stays there until the shout ends, rather than chattering through it. That
+it is measured against their gate rather than an absolute keeps it honest
+across microphones, and the duration requirement is what separates a shout
+from one loud word.
+
+The two are independent, which is the useful part: a held shout produces
+one onset and then nothing, so it reads as loud and *slow*, while rapid
+speech reads as fast without being loud.
+
+Silence does nothing at all. Below the gate the mouth is shut and the
+renderer draws the same frame every time - verified as pixel-identical
+output over three seconds, not merely as looking still. A word cut off
+halfway starts shutting immediately rather than finishing an opening
+nobody is making a sound for. Idle sway is the one thing that still moves
+in a pause, and it has its own switch.
+
 ### Which way it moves
 
 | Motion | What it does |

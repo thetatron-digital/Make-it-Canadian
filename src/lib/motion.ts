@@ -1,4 +1,5 @@
 import { enabledFlaps } from "./flap";
+import { SpeechWatcher, type SpeechState } from "./expression";
 import { Flap, SequencerState, initialState, nextFlap } from "./sequence";
 import type { AvatarConfig } from "./types";
 
@@ -50,7 +51,7 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
  * closed before the next one starts. That closing is the whole look, so it
  * is the default.
  */
-type Phase = "idle" | "opening" | "closing";
+type Phase = "idle" | "opening" | "holding" | "closing";
 
 export class MouthMotion {
   /** Continuous, pre-quantisation value. Envelope modes only. */
@@ -65,6 +66,8 @@ export class MouthMotion {
   private value = 0;
   /** Which degree the last flap used, so consecutive flaps differ. */
   private lastDegree = -1;
+  private watcher = new SpeechWatcher();
+  private speech: SpeechState = { rate: 0, rush: 0, shouting: false };
   /** The motion this flap is using, chosen once as the mouth opens. */
   private flap: Flap = { kind: "hingeLeft", tilt: 0 };
   private sequence: SequencerState = initialState();
@@ -81,6 +84,13 @@ export class MouthMotion {
     this.target = 1;
     this.value = 0;
     this.lastDegree = -1;
+    this.watcher.reset();
+    this.speech = { rate: 0, rush: 0, shouting: false };
+  }
+
+  /** How the engine currently reads the speaker, for the editor's readout. */
+  get speechState(): SpeechState {
+    return this.speech;
   }
 
   /** The motion the current flap is using. */
@@ -95,20 +105,24 @@ export class MouthMotion {
 
   update(level: number, dtMs: number, config: AvatarConfig): number {
     const drive = this.gate(level, config);
+    this.speech = this.watcher.update(level, drive, dtMs, config.threshold);
     if (config.motionMode === "flap") return this.flapCycle(drive, dtMs, config);
     return this.followEnvelope(drive, dtMs, config);
   }
 
   /**
-   * One complete open-and-shut per sound. A flap runs to the end once it
-   * has begun, even if the speaker stops mid-word, so the mouth can never
-   * be left hanging open.
+   * One complete open-and-shut per sound. Silence closes the mouth and
+   * leaves it alone: nothing moves between sentences.
    */
   private flapCycle(drive: number, dtMs: number, config: AvatarConfig): number {
-    const scale = activityTimeScale(config.activity);
+    const quiet = drive <= CLOSED_LEVEL;
+    // A rush shortens the whole cycle on top of the user's own timings.
+    const rush = config.rushEnabled ? this.speech.rush : 0;
+    const scale = activityTimeScale(config.activity) * (1 - 0.45 * rush);
+    const shouting = config.shoutHold && this.speech.shouting;
 
     if (this.phase === "idle") {
-      if (drive <= CLOSED_LEVEL) {
+      if (quiet) {
         this.value = 0;
         return 0;
       }
@@ -120,8 +134,17 @@ export class MouthMotion {
       this.value += rate * Math.max(0, dtMs);
       if (this.value >= this.target) {
         this.value = this.target;
+        // A shout is one long sound, so the mouth stays where it is rather
+        // than chattering through it.
+        this.phase = shouting ? "holding" : "closing";
+      } else if (quiet) {
+        // They stopped mid-word: start shutting now rather than finishing
+        // an opening nobody is making a sound for.
         this.phase = "closing";
       }
+    } else if (this.phase === "holding") {
+      this.value = this.target;
+      if (!shouting || quiet) this.phase = "closing";
     } else if (this.phase === "closing") {
       const rate = this.target / Math.max(1, config.releaseMs * scale);
       this.value -= rate * Math.max(0, dtMs);
@@ -140,7 +163,9 @@ export class MouthMotion {
     const chosen = nextFlap(this.sequence, enabledFlaps(config), config.flapOrder);
     this.flap = chosen.flap;
     this.sequence = chosen.state;
-    this.target = this.chooseDegree(drive, config);
+    // A shout goes straight to its widest and stays there.
+    const shouting = config.shoutHold && this.speech.shouting;
+    this.target = shouting ? 1 : this.chooseDegree(drive, config);
     this.phase = "opening";
     this.flapping = true;
   }
@@ -165,7 +190,9 @@ export class MouthMotion {
     for (let i = 1; i <= degrees; i++) {
       if (i === this.lastDegree) continue;
       // Closest to the loudness wins, with a nudge so it is not rigid.
-      const score = -Math.abs(i - ideal) + Math.random() * 0.9;
+      // A rush widens the spread, so the openings get less orderly.
+      const spread = 0.9 + 2.4 * (config.rushEnabled ? this.speech.rush : 0);
+      const score = -Math.abs(i - ideal) + Math.random() * spread;
       if (score > bestScore) {
         bestScore = score;
         best = i;

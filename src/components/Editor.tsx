@@ -35,19 +35,19 @@ const PRESETS: { id: string; label: string; blurb: string; values: Partial<Avata
     id: "calm",
     label: "Calm",
     blurb: "Opens for speech, ignores the rest.",
-    values: { motionMode: "flap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 220, flapMotions: ["hingeLeft", "lift"] },
+    values: { motionMode: "flap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 220, flapMotions: ["hingeLeft", "lift"], rushEnabled: false, shoutHold: true },
   },
   {
     id: "chatty",
     label: "Chatty",
     blurb: "The classic flap. A good place to start.",
-    values: { motionMode: "flap", snapSteps: 3, activity: 50, attackMs: 45, releaseMs: 130, flapMotions: ["hingeLeft", "hingeRight", "lift"] },
+    values: { motionMode: "flap", snapSteps: 3, activity: 50, attackMs: 45, releaseMs: 130, flapMotions: ["hingeLeft", "hingeRight", "lift"], rushEnabled: true, shoutHold: true },
   },
   {
     id: "clack",
     label: "Click-clack",
     blurb: "Jumps on every syllable, three different ways.",
-    values: { motionMode: "flap", snapSteps: 5, activity: 85, attackMs: 18, releaseMs: 65, flapMotions: ["hingeLeft", "hingeRight", "lift", "middle"] },
+    values: { motionMode: "flap", snapSteps: 5, activity: 85, attackMs: 18, releaseMs: 65, flapMotions: ["hingeLeft", "hingeRight", "lift", "middle"], rushEnabled: true, shoutHold: true },
   },
 ];
 
@@ -517,6 +517,28 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
                 run of corners, and it gets more likely whenever one repeats.
               </p>
             </div>
+
+            <Row
+              label="Speeds up when you rush"
+              hint="Counts your syllables. Talk fast and the flapping gets quicker and less orderly."
+            >
+              <Toggle
+                checked={config.rushEnabled}
+                onChange={(rushEnabled) => update({ rushEnabled })}
+                label="React to speaking speed"
+              />
+            </Row>
+
+            <Row
+              label="Holds open when you shout"
+              hint="A voice held loud for longer than a syllable holds the mouth wide open instead of chattering through it."
+            >
+              <Toggle
+                checked={config.shoutHold}
+                onChange={(shoutHold) => update({ shoutHold })}
+                label="Hold open on a shout"
+              />
+            </Row>
 
             {enabledMotions.length > 1 && (
               <Row label="Order" hint="Natural keeps it balanced. In turn is a strict rotation.">
