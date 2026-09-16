@@ -84,7 +84,13 @@ export function LiveStage({ id }: { id: string }) {
     return () => navigator.mediaDevices.removeEventListener("devicechange", onChange);
   }, [config, micState.status, refreshDevices, startMic]);
 
-  if (state === "missing") return <Notice title="This avatar does not exist" body="Check the link, or make a new one." />;
+  if (state === "missing")
+    return (
+      <Notice
+        title="This avatar is gone"
+        body="Avatars are kept for a week after they were last saved. Make a new one, or open your editor link and save it again."
+      />
+    );
   if (state === "error") return <Notice title="This avatar could not be loaded" body="Refresh this source in OBS to try again." />;
 
   const micProblem =

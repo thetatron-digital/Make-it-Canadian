@@ -6,6 +6,7 @@ import type { Box } from "@/lib/geometry";
 import { renderSize } from "@/lib/geometry";
 import { obsDimensions } from "@/lib/render";
 import type { AvatarConfig } from "@/lib/types";
+import { RETENTION_DAYS, expiryDate } from "@/lib/retention";
 
 /**
  * Everything a streamer needs after saving, in the order they need it. This
@@ -91,6 +92,13 @@ export function SuccessPanel({
       <p className="border-b border-hair bg-blush px-4 py-3 text-[14px] leading-snug">
         The background is already see-through in OBS. You do not need a green screen, and you do not need to key
         anything out.
+      </p>
+
+      <p className="border-b border-hair px-4 py-3 text-[14px] leading-snug">
+        <strong>This avatar is kept for {RETENTION_DAYS} days</strong>, until{" "}
+        {expiryDate().toLocaleDateString(undefined, { day: "numeric", month: "long" })}. Opening the editor and
+        saving again resets the clock, so one you keep using sticks around. After that the picture is deleted and the
+        link stops working.
       </p>
 
       <p className="px-4 py-3 hint">

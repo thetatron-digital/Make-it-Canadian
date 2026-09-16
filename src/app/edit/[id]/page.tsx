@@ -56,9 +56,9 @@ export default function EditSavedPage() {
         <SiteHeader />
         <main className="mx-auto max-w-2xl px-4 py-16">
           <h1 className="text-2xl font-black">That avatar could not be found</h1>
-          <p className="mt-2 text-slate-300">
-            The link may be mistyped. There are no accounts here, so a lost link cannot be recovered — but making a new
-            one takes about a minute.
+          <p className="mt-2 text-[15px] text-quiet">
+            Either the link is mistyped, or it expired — avatars are deleted a week after they were last saved. There
+            are no accounts here, so nothing can be recovered, but making a new one takes about a minute.
           </p>
           <Link href="/edit" className="btn-primary mt-6">
             Make a new one

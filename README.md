@@ -137,6 +137,30 @@ land in `avatars/<id>.png` and configs in `configs/<id>.json`. There is no
 database, no auth and no accounts: the id in the URL is the only key, which
 is why the app tells people to bookmark their editor link.
 
+## Retention
+
+Avatars are deleted a week after they were last saved. `vercel.json`
+schedules a daily sweep of `/api/cleanup`, which groups every object in the
+store by its id and removes the pair - picture and settings together - when
+the newest of the two is past the window. Saving from the editor counts as
+touching it, so one that is actively used keeps renewing itself, and an old
+picture whose settings were edited yesterday is never half-deleted into a
+broken link.
+
+This is a deliberate product decision rather than a storage saving. People
+upload their own faces to try a toy; those files should not sit on someone
+else's server forever. The success panel names the date, and `/how`
+explains how to renew.
+
+The window is `RETENTION_DAYS` in `src/lib/retention.ts`. It is a plain
+constant rather than an environment variable so the number the interface
+promises and the number the sweep enforces cannot drift apart.
+
+The sweep endpoint is safe to call by anyone: it can only remove what is
+already expired, so an unexpected caller does exactly what the timer would
+have done. Setting `CRON_SECRET` on the project enforces a bearer token as
+well, and Vercel sends it automatically on scheduled runs.
+
 ## Scripts
 
 | Script | Purpose |

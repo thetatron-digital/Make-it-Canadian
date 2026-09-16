@@ -34,6 +34,10 @@ const TROUBLESHOOTING = [
     fix: "OBS cannot show a permission pop-up, so some versions block the microphone in Browser Sources. Two ways round it: close OBS and start it once from a shortcut with --use-fake-ui-for-media-stream added to the end of the target, which grants it automatically; or open your live link in a normal browser window and add it to OBS as a Window Capture instead.",
   },
   {
+    problem: "It worked last month and now the link is dead",
+    fix: "Avatars are kept for a week after they were last saved, then the picture is deleted and the link stops working. This is on purpose — nobody's face should sit on a server forever because they tried a toy once. If you use one regularly, open your editor link and press save now and then: that resets the week. Otherwise just make a new one, which takes about a minute.",
+  },
+  {
     problem: "I lost my link",
     fix: "There are no accounts and no password, so a lost link cannot be recovered. Making a new avatar takes about a minute. Bookmark the editor link this time.",
   },
@@ -100,7 +104,8 @@ export default function HowPage() {
           <p className="px-4 py-3 text-[14px] leading-snug">
             There is no login here. Your editor link — the one that looks like{" "}
             <span className="literal">/edit/abcd1234</span> — is the only way back to your settings.
-            Bookmark it, or paste it somewhere you will find it again.
+            Bookmark it, or paste it somewhere you will find it again. Avatars are kept for a week after they were
+            last saved; saving again from the editor resets that week.
           </p>
         </Window>
       </main>

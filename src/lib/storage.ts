@@ -128,6 +128,31 @@ export async function loadConfig(id: string): Promise<AvatarConfig | null> {
   }
 }
 
+/** Everything in the store, paged through. Blob only; the dev fallback has nothing to sweep. */
+export async function listAllObjects(): Promise<{ pathname: string; uploadedAt: Date; url: string }[]> {
+  if (!hasBlob()) return [];
+  const { list } = await import("@vercel/blob");
+  const objects: { pathname: string; uploadedAt: Date; url: string }[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ cursor, limit: 250 });
+    for (const blob of page.blobs) {
+      objects.push({ pathname: blob.pathname, uploadedAt: blob.uploadedAt, url: blob.url });
+    }
+    cursor = page.cursor;
+  } while (cursor);
+  return objects;
+}
+
+export async function deleteObjects(urls: string[]): Promise<void> {
+  if (urls.length === 0 || !hasBlob()) return;
+  const { del } = await import("@vercel/blob");
+  // Batched to stay well inside the service's rate limits.
+  for (let i = 0; i < urls.length; i += 100) {
+    await del(urls.slice(i, i + 100));
+  }
+}
+
 export async function loadLocalFile(name: string): Promise<Buffer | null> {
   try {
     return await fs.readFile(localFile(name));
