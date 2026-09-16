@@ -1,5 +1,6 @@
 export type HingeSide = "left" | "right" | "center";
 export type MotionMode = "smooth" | "snap";
+export type FlapOrder = "cycle" | "shuffle";
 export type BackgroundMode = "transparent" | "green" | "custom";
 
 export const GREEN_SCREEN = "#00b140";
@@ -16,8 +17,16 @@ export interface AvatarConfig {
   splitY: number;
   /** Split line tilt in degrees, -25..25. Positive tilts the right-hand side down. */
   splitAngle: number;
-  /** Which end of the line the top piece pivots around. */
+  /** Which end of the line the top piece pivots around on a plain flap. */
   hingeSide: HingeSide;
+  /**
+   * How many different motions the mouth draws from, 1..5. At 1 every flap
+   * uses `hingeSide`; above that each flap takes the next motion in turn,
+   * so the mouth stops looking like a single hinge.
+   */
+  flapVariety: number;
+  /** Whether those motions come round in order or at random. */
+  flapOrder: FlapOrder;
   /** Degrees the top piece swings at full volume, 5..45. */
   maxOpenAngle: number;
 
@@ -58,6 +67,8 @@ export const DEFAULT_CONFIG: Omit<AvatarConfig, "imageUrl" | "imageWidth" | "ima
   splitY: 0.55,
   splitAngle: 0,
   hingeSide: "left",
+  flapVariety: 1,
+  flapOrder: "cycle",
   maxOpenAngle: 18,
   deviceId: "",
   deviceLabel: "",
@@ -83,6 +94,7 @@ export const LIMITS = {
   attackMs: { min: 5, max: 400 },
   releaseMs: { min: 20, max: 800 },
   snapSteps: { min: 2, max: 8 },
+  flapVariety: { min: 1, max: 5 },
   activity: { min: 0, max: 100 },
   swayAmount: { min: 0, max: 4 },
   swaySpeed: { min: 0.05, max: 1.5 },
@@ -118,6 +130,7 @@ export function normalizeConfig(raw: unknown): AvatarConfig | null {
   const d = DEFAULT_CONFIG;
   const hingeSide = str(r.hingeSide, d.hingeSide);
   const motionMode = str(r.motionMode, d.motionMode);
+  const flapOrder = str(r.flapOrder, d.flapOrder);
   const background = str(r.background, d.background);
 
   return {
@@ -128,6 +141,8 @@ export function normalizeConfig(raw: unknown): AvatarConfig | null {
     splitY: num(r.splitY, d.splitY, 0.02, 0.98),
     splitAngle: num(r.splitAngle, d.splitAngle, LIMITS.splitAngle.min, LIMITS.splitAngle.max),
     hingeSide: (["left", "right", "center"].includes(hingeSide) ? hingeSide : d.hingeSide) as HingeSide,
+    flapVariety: Math.round(num(r.flapVariety, d.flapVariety, LIMITS.flapVariety.min, LIMITS.flapVariety.max)),
+    flapOrder: (flapOrder === "shuffle" ? "shuffle" : "cycle") as FlapOrder,
     maxOpenAngle: num(r.maxOpenAngle, d.maxOpenAngle, LIMITS.maxOpenAngle.min, LIMITS.maxOpenAngle.max),
     deviceId: str(r.deviceId, ""),
     deviceLabel: str(r.deviceLabel, ""),

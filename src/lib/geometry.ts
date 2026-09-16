@@ -115,9 +115,9 @@ export function splitPieces(config: AvatarConfig): SplitPieces {
  * `bounds` is the alpha bounding box, so the hinge lands on the visible
  * artwork rather than on empty transparent margin.
  */
-export function hingePoint(config: AvatarConfig, bounds: Box): Point {
+export function hingePoint(config: AvatarConfig, bounds: Box, side: HingeSide = config.hingeSide): Point {
   const line = splitLine(config);
-  const x = hingeX(config.hingeSide, bounds);
+  const x = hingeX(side, bounds);
   // Solve for the point on the line at this x. Vertical lines are impossible
   // here because the tilt is capped at +/-25 degrees.
   const t = (x - line.origin.x) / line.dir.x;
@@ -138,69 +138,6 @@ export function rotatePoint(p: Point, pivot: Point, radians: number): Point {
   return {
     x: pivot.x + dx * cos - dy * sin,
     y: pivot.y + dx * sin + dy * cos,
-  };
-}
-
-export interface Padding {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
-
-/**
- * How far the artwork can travel outside the image rectangle once the top
- * piece swings and the whole thing sways. The canvas is padded by this so a
- * wide-open mouth is never clipped, and the OBS source size is derived from
- * it for the same reason. It is deliberately asymmetric: a left hinge only
- * ever swings up and to the right, and padding the other sides would just
- * add dead space to the OBS source.
- */
-export function renderPadding(config: AvatarConfig, bounds: Box): Padding {
-  const { top } = splitPieces(config);
-  const hinge = hingePoint(config, bounds);
-  const swing = (config.maxOpenAngle * Math.PI) / 180;
-  const w = config.imageWidth;
-  const h = config.imageHeight;
-
-  const pad: Padding = { left: 0, right: 0, top: 0, bottom: 0 };
-
-  for (const corner of top) {
-    for (const angle of [-swing, swing]) {
-      const r = rotatePoint(corner, hinge, angle);
-      pad.left = Math.max(pad.left, -r.x);
-      pad.right = Math.max(pad.right, r.x - w);
-      pad.top = Math.max(pad.top, -r.y);
-      pad.bottom = Math.max(pad.bottom, r.y - h);
-    }
-  }
-
-  if (config.idleSway) {
-    // Sway rotates the whole group about its centre, so the worst case is
-    // the longest radius times the sway angle.
-    const sway = (config.swayAmount * Math.PI) / 180;
-    const travel = (Math.hypot(w, h) / 2) * Math.abs(Math.sin(sway));
-    pad.left += travel;
-    pad.right += travel;
-    pad.top += travel;
-    pad.bottom += travel;
-  }
-
-  return {
-    left: Math.ceil(pad.left) + 2,
-    right: Math.ceil(pad.right) + 2,
-    top: Math.ceil(pad.top) + 2,
-    bottom: Math.ceil(pad.bottom) + 2,
-  };
-}
-
-/** Full size of the canvas needed to show the avatar without clipping. */
-export function renderSize(config: AvatarConfig, bounds: Box): { width: number; height: number; pad: Padding } {
-  const pad = renderPadding(config, bounds);
-  return {
-    width: Math.round(config.imageWidth + pad.left + pad.right),
-    height: Math.round(config.imageHeight + pad.top + pad.bottom),
-    pad,
   };
 }
 

@@ -21,6 +21,8 @@ export interface AvatarCanvasProps {
   config: AvatarConfig;
   /** Read every frame, so the animation never re-renders React. */
   openValueRef: MutableRefObject<number>;
+  /** Which motion the current flap uses. Defaults to the first in the pool. */
+  variantRef?: MutableRefObject<number>;
   className?: string;
   /** Draws the split line and lets the user drag it. Editor only. */
   interactive?: boolean;
@@ -34,6 +36,7 @@ export function AvatarCanvas({
   bounds,
   config,
   openValueRef,
+  variantRef,
   className,
   interactive = false,
   onSplitDrag,
@@ -115,7 +118,7 @@ export function AvatarCanvas({
       elapsed += Math.min(now - last, 100) / 1000;
       last = now;
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      scene.draw(ctx, openValueRef.current, elapsed, dpr, currentLayout.scale);
+      scene.draw(ctx, openValueRef.current, variantRef?.current ?? 0, elapsed, dpr, currentLayout.scale);
     };
 
     const onVisibility = () => {
@@ -134,7 +137,7 @@ export function AvatarCanvas({
       cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [openValueRef]);
+  }, [openValueRef, variantRef]);
 
   /** Pointer position -> split position as a fraction of image height. */
   const splitFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {

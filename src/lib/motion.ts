@@ -1,3 +1,4 @@
+import { flapPool } from "./flap";
 import type { AvatarConfig } from "./types";
 
 /**
@@ -14,6 +15,14 @@ const TIME_SCALE_CHATTY = 0.4;
 
 /** Fraction of one step a value must overshoot before the mouth changes position. */
 const SNAP_HYSTERESIS = 0.28;
+
+/**
+ * Below this the mouth reads as shut. It is not zero on purpose: the
+ * smoothing decays exponentially and only reaches zero given a long enough
+ * silence, so testing against zero would mean a new flap is almost never
+ * detected at ordinary release settings.
+ */
+const CLOSED_LEVEL = 0.02;
 
 export function activitySpan(activity: number): number {
   return SPAN_CALM + (SPAN_CHATTY - SPAN_CALM) * (activity / 100);
@@ -38,10 +47,23 @@ export class MouthMotion {
   private smoothed = 0;
   /** Which discrete position the mouth currently sits on, in snap mode. */
   private step = 0;
+  /** Index into the flap pool, chosen fresh each time the mouth opens. */
+  private variant = 0;
+  private flapCount = 0;
+  /** Whether we are inside a flap, so each one picks its motion exactly once. */
+  private flapping = false;
 
   reset(): void {
     this.smoothed = 0;
     this.step = 0;
+    this.variant = 0;
+    this.flapCount = 0;
+    this.flapping = false;
+  }
+
+  /** Which motion the current flap is using. */
+  get flapVariant(): number {
+    return this.variant;
   }
 
   /** The smoothed value before quantisation, handy for meters. */
@@ -51,6 +73,16 @@ export class MouthMotion {
 
   update(level: number, dtMs: number, config: AvatarConfig): number {
     const target = this.gate(level, config);
+    // A flap runs from the mouth leaving shut to it settling back. Picking
+    // the motion on that leading edge keeps it steady for the whole flap,
+    // and the two thresholds stop a wavering signal from swapping motions
+    // halfway through one.
+    if (!this.flapping && target > CLOSED_LEVEL) {
+      this.flapping = true;
+      this.chooseVariant(config);
+    } else if (this.flapping && target <= 0 && this.smoothed < CLOSED_LEVEL) {
+      this.flapping = false;
+    }
     const timeScale = activityTimeScale(config.activity);
     const tau = Math.max(1, (target > this.smoothed ? config.attackMs : config.releaseMs) * timeScale);
     // Exponential approach, framerate independent.
@@ -60,6 +92,27 @@ export class MouthMotion {
 
     if (config.motionMode === "smooth") return clamp01(this.smoothed);
     return this.quantize(clamp01(this.smoothed), config.snapSteps);
+  }
+
+  /**
+   * Take the next motion in turn, or a random one that is not the motion we
+   * have just used - repeating immediately is what makes "random" read as
+   * broken rather than varied.
+   */
+  private chooseVariant(config: AvatarConfig): void {
+    const size = flapPool(config.flapVariety).length;
+    if (size <= 1) {
+      this.variant = 0;
+      return;
+    }
+    this.flapCount += 1;
+    if (config.flapOrder === "cycle") {
+      this.variant = this.flapCount % size;
+      return;
+    }
+    let next = Math.floor(Math.random() * size);
+    if (next === this.variant) next = (next + 1 + Math.floor(Math.random() * (size - 1))) % size;
+    this.variant = next;
   }
 
   /** Noise gate plus the activity-scaled loudness span. */

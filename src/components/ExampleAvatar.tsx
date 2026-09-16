@@ -14,12 +14,13 @@ const EXAMPLE: AvatarConfig = {
   splitAngle: -6,
   maxOpenAngle: 20,
   activity: 60,
+  flapVariety: 3,
 };
 
 /** The landing page demo: the same renderer, driven by simulated speech. */
 export function ExampleAvatar() {
   const { loaded } = useAvatarImage(EXAMPLE.imageUrl);
-  const { openRef } = useMouthDriver(EXAMPLE, 0.8);
+  const { openRef, variantRef } = useMouthDriver(EXAMPLE, 0.8);
 
   return (
     <div className="space-y-3">
@@ -30,6 +31,7 @@ export function ExampleAvatar() {
             bounds={loaded.bounds}
             config={EXAMPLE}
             openValueRef={openRef}
+            variantRef={variantRef}
             className="h-full w-full"
           />
         )}

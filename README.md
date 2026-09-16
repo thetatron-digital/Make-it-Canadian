@@ -57,6 +57,39 @@ single accent colour. The bitmap display face (Silkscreen, self-hosted via
 status labels. It has no lowercase, so it never renders user data: links,
 ids, hex colours and measured values are all monospace.
 
+## How the mouth moves
+
+A mouth that always pivots from the same corner reads as a hinge after
+about ten seconds. So a flap is not one motion but a choice from a pool,
+made fresh each time the mouth leaves shut and held steady until it closes
+again. "How many ways it moves" sets the size of that pool:
+
+| # | Motion | What it does |
+| --- | --- | --- |
+| 1 | Your hinge | Pivots at the corner you chose. |
+| 2 | The next corner | Pivots at a different corner, so the other side lifts. |
+| 3 | Straight up | No pivot at all — the top lifts, leaving an even gap. |
+| 4 | The third corner | The remaining pivot, including the middle seesaw. |
+| 5 | Lift and tilt | Rises and pivots at once. |
+
+The slots are named by position rather than by a fixed side, which is what
+keeps them distinct: with a centre hinge, "your hinge" and "the seesaw"
+would otherwise be the same motion and the dial would quietly stop adding
+anything. Variety 1 is exactly the original single-hinge look, so nothing
+changes for avatars that do not ask for it.
+
+Every motion is expressed as one rotation about a pivot followed by one
+translation, so the renderer has a single path for all five. The mouth
+interior follows suit: a pure pivot sweeps its edge along an arc, so the
+gap is a circular sector either side of the hinge — two of them, which is
+what makes a seesaw look right — while a motion that travels opens a
+quadrilateral between the resting edge and the moved one, which is exactly
+right for a straight lift.
+
+Canvas padding is measured across the whole pool rather than the current
+motion, because the mouth may pick any of them mid-stream and a canvas
+sized for a pivot would crop a lift.
+
 ## Routes
 
 | Route | What it is |

@@ -7,6 +7,7 @@ import { LevelMeter } from "./LevelMeter";
 import { SuccessPanel } from "./SuccessPanel";
 import { Field, FineTune, Row, Segmented, SiteHeader, Slider, Step, Toggle, Window } from "./ui";
 import { resolveDevice } from "@/lib/audio";
+import { MAX_VARIETY, flapLabel, flapPool } from "@/lib/flap";
 import { useAvatarImage } from "@/lib/useAvatarImage";
 import { useMouthDriver } from "@/lib/useMouthDriver";
 import {
@@ -16,6 +17,7 @@ import {
   type AvatarConfig,
   type BackgroundMode,
   type HingeSide,
+  type FlapOrder,
   type MotionMode,
 } from "@/lib/types";
 
@@ -33,19 +35,19 @@ const PRESETS: { id: string; label: string; blurb: string; values: Partial<Avata
     id: "calm",
     label: "Calm",
     blurb: "Opens for speech, ignores the rest.",
-    values: { motionMode: "snap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 200 },
+    values: { motionMode: "snap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 200, flapVariety: 1 },
   },
   {
     id: "chatty",
     label: "Chatty",
     blurb: "The classic flap. A good place to start.",
-    values: { motionMode: "snap", snapSteps: 2, activity: 50, attackMs: 40, releaseMs: 120 },
+    values: { motionMode: "snap", snapSteps: 2, activity: 50, attackMs: 40, releaseMs: 120, flapVariety: 2 },
   },
   {
     id: "clack",
     label: "Click-clack",
-    blurb: "Jumps on every syllable.",
-    values: { motionMode: "snap", snapSteps: 4, activity: 85, attackMs: 15, releaseMs: 70 },
+    blurb: "Jumps on every syllable, three different ways.",
+    values: { motionMode: "snap", snapSteps: 4, activity: 85, attackMs: 15, releaseMs: 70, flapVariety: 3 },
   },
 ];
 
@@ -99,7 +101,7 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
     config ?? ({ ...DEFAULT_CONFIG, imageUrl: "", imageWidth: 1, imageHeight: 1 } as AvatarConfig),
     simulate,
   );
-  const { openRef, levelRef, micState, devices, refreshDevices, startMic } = driver;
+  const { openRef, levelRef, variantRef, micState, devices, refreshDevices, startMic } = driver;
 
   // Show the device list up front: picking the right microphone is the one
   // step people get wrong, and an empty dropdown does not help them.
@@ -260,6 +262,7 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
               bounds={loaded.bounds}
               config={config}
               openValueRef={openRef}
+              variantRef={variantRef}
               interactive={openStep === 1}
               showTransparencyGrid={config.background === "transparent"}
               onSplitDrag={(splitY) => update({ splitY })}
@@ -465,6 +468,53 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
                 ))}
               </div>
             </div>
+
+            <Field
+              label="How many ways it moves"
+              value={config.flapVariety}
+              hint="Each flap uses the next movement in the list, so the mouth stops looking like one hinge opening and shutting."
+            >
+              <Slider
+                ariaLabel="Movement variety"
+                min={LIMITS.flapVariety.min}
+                max={LIMITS.flapVariety.max}
+                value={config.flapVariety}
+                onChange={(flapVariety) => {
+                  update({ flapVariety });
+                  if (simulate === 0) setSimulate(0.85);
+                }}
+              />
+              <ul className="mt-1 space-y-1">
+                {flapPool(MAX_VARIETY).map((kind, index) => {
+                  const on = index < config.flapVariety;
+                  const { label, blurb } = flapLabel(kind, config.hingeSide);
+                  return (
+                    <li key={kind} className={`flex gap-2 text-[13px] leading-snug ${on ? "" : "opacity-40"}`}>
+                      <span aria-hidden className={`font-display text-[10px] ${on ? "text-maple" : "text-quiet"}`}>
+                        {on ? "●" : "○"}
+                      </span>
+                      <span>
+                        <strong className="font-semibold">{label}</strong> — {blurb}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Field>
+
+            {config.flapVariety > 1 && (
+              <Row label="Order" hint="In turn is rhythmic. Shuffled is less predictable.">
+                <Segmented<FlapOrder>
+                  ariaLabel="Flap order"
+                  value={config.flapOrder}
+                  onChange={(flapOrder) => update({ flapOrder })}
+                  options={[
+                    { value: "cycle", label: "In turn" },
+                    { value: "shuffle", label: "Shuffled" },
+                  ]}
+                />
+              </Row>
+            )}
 
             <FineTune>
               <Row label="Movement" hint="Snapping is the cartoon look.">

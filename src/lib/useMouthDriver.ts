@@ -10,6 +10,8 @@ export interface MouthDriver {
   openRef: React.MutableRefObject<number>;
   /** Raw microphone level, for the input meter. */
   levelRef: React.MutableRefObject<number>;
+  /** Which motion the current flap is using. Read by the canvas each frame. */
+  variantRef: React.MutableRefObject<number>;
   micState: MicState;
   devices: MicDevice[];
   refreshDevices: () => Promise<MicDevice[]>;
@@ -24,6 +26,7 @@ export interface MouthDriver {
 export function useMouthDriver(config: AvatarConfig, simulate: number): MouthDriver {
   const openRef = useRef(0);
   const levelRef = useRef(0);
+  const variantRef = useRef(0);
   const configRef = useRef(config);
   const simulateRef = useRef(simulate);
   const motionRef = useRef(new MouthMotion());
@@ -51,6 +54,7 @@ export function useMouthDriver(config: AvatarConfig, simulate: number): MouthDri
       const level = simulated > 0 ? simulatedLevel(clock, simulated) : engine.getState().status === "running" ? engine.level() : 0;
       levelRef.current = level;
       openRef.current = motionRef.current.update(level, dtMs, configRef.current);
+      variantRef.current = motionRef.current.flapVariant;
     };
 
     const onVisibility = () => {
@@ -92,7 +96,7 @@ export function useMouthDriver(config: AvatarConfig, simulate: number): MouthDri
     levelRef.current = 0;
   }, [engine]);
 
-  return { openRef, levelRef, micState, devices, refreshDevices, startMic, stopMic };
+  return { openRef, levelRef, variantRef, micState, devices, refreshDevices, startMic, stopMic };
 }
 
 export { resolveDevice };

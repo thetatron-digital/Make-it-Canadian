@@ -1,13 +1,13 @@
+import { Box, Point, Polygon, polygonPath, splitPieces } from "./geometry";
 import {
-  Box,
+  FlapKind,
+  FlapMotion,
   Padding,
-  Point,
-  Polygon,
-  hingePoint,
-  polygonPath,
+  applyFlap,
+  flapMotion,
+  flapPool,
   renderSize,
-  splitPieces,
-} from "./geometry";
+} from "./flap";
 import type { AvatarConfig } from "./types";
 
 export type AvatarImage = HTMLImageElement | ImageBitmap | HTMLCanvasElement;
@@ -16,7 +16,7 @@ interface Derived {
   top: Polygon;
   bottom: Polygon;
   edge: [Point, Point] | null;
-  hinge: Point;
+  pool: FlapKind[];
   pad: Padding;
   width: number;
   height: number;
@@ -25,16 +25,7 @@ interface Derived {
 function derive(config: AvatarConfig, bounds: Box): Derived {
   const { top, bottom, edge } = splitPieces(config);
   const { width, height, pad } = renderSize(config, bounds);
-  return { top, bottom, edge, hinge: hingePoint(config, bounds), pad, width, height };
-}
-
-/**
- * Which way the top piece swings. A left hinge lifts the right-hand side,
- * a right hinge lifts the left-hand side, and a centre hinge pivots about
- * the middle of the line.
- */
-function swingDirection(config: AvatarConfig): number {
-  return config.hingeSide === "right" ? 1 : -1;
+  return { top, bottom, edge, pool: flapPool(config.flapVariety), pad, width, height };
 }
 
 /**
@@ -73,12 +64,20 @@ export class AvatarScene {
    * Draws one frame.
    *
    * @param openValue 0-1, how far open the mouth is.
+   * @param variant   Which motion this flap is using, indexed into the pool.
    * @param timeSec   Seconds since the loop started, drives the idle sway.
    * @param scale     Extra scale applied on top of the device pixel ratio.
    */
-  draw(ctx: CanvasRenderingContext2D, openValue: number, timeSec: number, dpr: number, scale: number): void {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    openValue: number,
+    variant: number,
+    timeSec: number,
+    dpr: number,
+    scale: number,
+  ): void {
     const config = this.config;
-    const { top, bottom, hinge, pad, width, height } = this.derived;
+    const { top, bottom, pool, pad, width, height } = this.derived;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, width * scale * dpr, height * scale * dpr);
@@ -95,7 +94,9 @@ export class AvatarScene {
     ctx.save();
     this.applySway(ctx, timeSec);
 
-    const angle = swingDirection(config) * openValue * ((config.maxOpenAngle * Math.PI) / 180);
+    const kind = pool[Math.min(pool.length - 1, Math.max(0, variant))] ?? "primary";
+    const motion = flapMotion(kind, config, this.bounds, openValue);
+    const moving = Math.abs(motion.angle) > 1e-4 || Math.hypot(motion.offset.x, motion.offset.y) > 0.01;
 
     // 1. Bottom piece, untouched.
     ctx.save();
@@ -105,18 +106,19 @@ export class AvatarScene {
     ctx.drawImage(this.image as CanvasImageSource, 0, 0, config.imageWidth, config.imageHeight);
     ctx.restore();
 
-    // 2. Mouth interior, filling the gap the rotation opens up.
-    if (config.mouthInterior && Math.abs(angle) > 1e-4) {
-      const mouth = this.renderMouthInterior(angle);
+    // 2. Mouth interior, filling the gap the movement opens up.
+    if (config.mouthInterior && moving) {
+      const mouth = this.renderMouthInterior(motion);
       if (mouth) ctx.drawImage(mouth, 0, 0, config.imageWidth, config.imageHeight);
     }
 
-    // 3. Top piece, hinged open. The clip is applied after the rotation so
-    // the polygon travels with the piece.
+    // 3. Top piece, moved. The clip is applied after the transform so the
+    // polygon travels with the piece.
     ctx.save();
-    ctx.translate(hinge.x, hinge.y);
-    ctx.rotate(angle);
-    ctx.translate(-hinge.x, -hinge.y);
+    ctx.translate(motion.offset.x, motion.offset.y);
+    ctx.translate(motion.pivot.x, motion.pivot.y);
+    ctx.rotate(motion.angle);
+    ctx.translate(-motion.pivot.x, -motion.pivot.y);
     ctx.beginPath();
     polygonPath(ctx, top);
     ctx.clip();
@@ -141,16 +143,19 @@ export class AvatarScene {
   }
 
   /**
-   * The wedge of mouth interior revealed by the swing. The top piece's edge
-   * sweeps an arc around the hinge, so the gap is the sector between the
-   * resting edge and the rotated edge - one sector on each side of the
-   * hinge, which is also what makes a centre hinge look right.
+   * The mouth interior revealed by the movement.
+   *
+   * A pure pivot sweeps its edge along an arc, so the gap is a circular
+   * sector either side of the hinge - two of them, which is what makes a
+   * seesaw look right. Once the piece also travels, the gap becomes the
+   * quadrilateral between the resting edge and the moved one, which is
+   * exactly right for a straight lift.
    *
    * The result is masked by the artwork's own alpha, so the interior can
    * never spill outside the silhouette of the character.
    */
-  private renderMouthInterior(angle: number): HTMLCanvasElement | null {
-    const { edge, hinge } = this.derived;
+  private renderMouthInterior(motion: FlapMotion): HTMLCanvasElement | null {
+    const { edge } = this.derived;
     if (!edge) return null;
     const config = this.config;
 
@@ -168,15 +173,29 @@ export class AvatarScene {
     mctx.clearRect(0, 0, canvas.width, canvas.height);
     mctx.fillStyle = config.mouthColor;
 
-    for (const end of edge) {
-      const radius = Math.hypot(end.x - hinge.x, end.y - hinge.y);
-      if (radius < 0.5) continue;
-      const start = Math.atan2(end.y - hinge.y, end.x - hinge.x);
+    const travels = Math.hypot(motion.offset.x, motion.offset.y) > 0.01;
+    if (travels) {
+      const movedStart = applyFlap(motion, edge[0]);
+      const movedEnd = applyFlap(motion, edge[1]);
       mctx.beginPath();
-      mctx.moveTo(hinge.x, hinge.y);
-      mctx.arc(hinge.x, hinge.y, radius, start, start + angle, angle < 0);
+      mctx.moveTo(edge[0].x, edge[0].y);
+      mctx.lineTo(edge[1].x, edge[1].y);
+      mctx.lineTo(movedEnd.x, movedEnd.y);
+      mctx.lineTo(movedStart.x, movedStart.y);
       mctx.closePath();
       mctx.fill();
+    } else {
+      const pivot = motion.pivot;
+      for (const end of edge) {
+        const radius = Math.hypot(end.x - pivot.x, end.y - pivot.y);
+        if (radius < 0.5) continue;
+        const start = Math.atan2(end.y - pivot.y, end.x - pivot.x);
+        mctx.beginPath();
+        mctx.moveTo(pivot.x, pivot.y);
+        mctx.arc(pivot.x, pivot.y, radius, start, start + motion.angle, motion.angle < 0);
+        mctx.closePath();
+        mctx.fill();
+      }
     }
 
     // Keep only the part that sits on the artwork.

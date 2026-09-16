@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CopyButton, Window } from "./ui";
 import type { Box } from "@/lib/geometry";
-import { renderSize } from "@/lib/geometry";
+import { renderSize } from "@/lib/flap";
 import { obsDimensions } from "@/lib/render";
 import type { AvatarConfig } from "@/lib/types";
 import { RETENTION_DAYS, expiryDate } from "@/lib/retention";
