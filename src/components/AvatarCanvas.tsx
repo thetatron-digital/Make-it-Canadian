@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import { hingePoint, type Box } from "@/lib/geometry";
+import { enabledFlaps } from "@/lib/flap";
 import { AvatarScene, type AvatarImage } from "@/lib/render";
+import type { Flap } from "@/lib/sequence";
 import type { AvatarConfig } from "@/lib/types";
 
 interface Layout {
@@ -15,14 +17,16 @@ interface Layout {
   padTop: number;
 }
 
+const FIRST_FLAP: Flap = { kind: "hingeLeft", tilt: 0 };
+
 export interface AvatarCanvasProps {
   image: AvatarImage;
   bounds: Box;
   config: AvatarConfig;
   /** Read every frame, so the animation never re-renders React. */
   openValueRef: MutableRefObject<number>;
-  /** Which motion the current flap uses. Defaults to the first in the pool. */
-  variantRef?: MutableRefObject<number>;
+  /** Which motion the current flap uses. Defaults to the first enabled one. */
+  flapRef?: MutableRefObject<Flap>;
   className?: string;
   /** Draws the split line and lets the user drag it. Editor only. */
   interactive?: boolean;
@@ -36,7 +40,7 @@ export function AvatarCanvas({
   bounds,
   config,
   openValueRef,
-  variantRef,
+  flapRef,
   className,
   interactive = false,
   onSplitDrag,
@@ -118,7 +122,7 @@ export function AvatarCanvas({
       elapsed += Math.min(now - last, 100) / 1000;
       last = now;
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      scene.draw(ctx, openValueRef.current, variantRef?.current ?? 0, elapsed, dpr, currentLayout.scale);
+      scene.draw(ctx, openValueRef.current, flapRef?.current ?? FIRST_FLAP, elapsed, dpr, currentLayout.scale);
     };
 
     const onVisibility = () => {
@@ -137,7 +141,7 @@ export function AvatarCanvas({
       cancelAnimationFrame(frame);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [openValueRef, variantRef]);
+  }, [openValueRef, flapRef]);
 
   /** Pointer position -> split position as a fraction of image height. */
   const splitFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -202,7 +206,9 @@ export function AvatarCanvas({
                 strokeWidth={dragging ? 3 : 2}
                 strokeDasharray="7 5"
               />
-              <circle cx={guide.hingeX} cy={guide.hingeY} r={7} fill="#d8232a" stroke="#ffffff" strokeWidth={2} />
+              {guide.pivots.map((pivot, index) => (
+                <circle key={index} cx={pivot.x} cy={pivot.y} r={7} fill="#d8232a" stroke="#ffffff" strokeWidth={2} />
+              ))}
             </svg>
             <p className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 rounded-md border-[1.5px] border-ink bg-paper px-2 py-1 text-[11px] font-semibold">
               Drag the line to move the mouth
@@ -225,8 +231,18 @@ function splitGuide(config: AvatarConfig, bounds: Box, layout: Layout) {
   });
   const left = toCss(0, centreY - halfWidth * Math.tan(theta));
   const right = toCss(config.imageWidth, centreY + halfWidth * Math.tan(theta));
-  // Same hinge the renderer uses, so the dot never lies about the pivot.
-  const pivot = hingePoint(config, bounds);
-  const hinge = toCss(pivot.x, pivot.y);
-  return { x1: left.x, y1: left.y, x2: right.x, y2: right.y, hingeX: hinge.x, hingeY: hinge.y };
+  // A marker per pivot actually in use, so the preview never implies a
+  // corner the mouth will not move from.
+  const sides = new Set(
+    enabledFlaps(config)
+      .map((kind) =>
+        kind === "hingeLeft" ? "left" : kind === "hingeRight" ? "right" : kind === "middle" ? "center" : null,
+      )
+      .filter((side): side is "left" | "right" | "center" => side !== null),
+  );
+  const pivots = [...sides].map((side) => {
+    const point = hingePoint(config, bounds, side);
+    return toCss(point.x, point.y);
+  });
+  return { x1: left.x, y1: left.y, x2: right.x, y2: right.y, pivots };
 }

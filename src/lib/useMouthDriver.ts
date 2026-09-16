@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MicEngine, resolveDevice, type MicDevice, type MicState } from "./audio";
 import { MouthMotion, simulatedLevel } from "./motion";
+import type { Flap } from "./sequence";
 import type { AvatarConfig } from "./types";
 
 export interface MouthDriver {
@@ -10,8 +11,8 @@ export interface MouthDriver {
   openRef: React.MutableRefObject<number>;
   /** Raw microphone level, for the input meter. */
   levelRef: React.MutableRefObject<number>;
-  /** Which motion the current flap is using. Read by the canvas each frame. */
-  variantRef: React.MutableRefObject<number>;
+  /** The motion the current flap is using. Read by the canvas each frame. */
+  flapRef: React.MutableRefObject<Flap>;
   micState: MicState;
   devices: MicDevice[];
   refreshDevices: () => Promise<MicDevice[]>;
@@ -26,7 +27,7 @@ export interface MouthDriver {
 export function useMouthDriver(config: AvatarConfig, simulate: number): MouthDriver {
   const openRef = useRef(0);
   const levelRef = useRef(0);
-  const variantRef = useRef(0);
+  const flapRef = useRef<Flap>({ kind: "hingeLeft", tilt: 0 });
   const configRef = useRef(config);
   const simulateRef = useRef(simulate);
   const motionRef = useRef(new MouthMotion());
@@ -54,7 +55,7 @@ export function useMouthDriver(config: AvatarConfig, simulate: number): MouthDri
       const level = simulated > 0 ? simulatedLevel(clock, simulated) : engine.getState().status === "running" ? engine.level() : 0;
       levelRef.current = level;
       openRef.current = motionRef.current.update(level, dtMs, configRef.current);
-      variantRef.current = motionRef.current.flapVariant;
+      flapRef.current = motionRef.current.currentFlap;
     };
 
     const onVisibility = () => {
@@ -96,7 +97,7 @@ export function useMouthDriver(config: AvatarConfig, simulate: number): MouthDri
     levelRef.current = 0;
   }, [engine]);
 
-  return { openRef, levelRef, variantRef, micState, devices, refreshDevices, startMic, stopMic };
+  return { openRef, levelRef, flapRef, micState, devices, refreshDevices, startMic, stopMic };
 }
 
 export { resolveDevice };

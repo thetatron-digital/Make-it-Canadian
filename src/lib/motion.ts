@@ -1,4 +1,5 @@
-import { flapPool } from "./flap";
+import { enabledFlaps } from "./flap";
+import { Flap, SequencerState, initialState, nextFlap } from "./sequence";
 import type { AvatarConfig } from "./types";
 
 /**
@@ -47,23 +48,23 @@ export class MouthMotion {
   private smoothed = 0;
   /** Which discrete position the mouth currently sits on, in snap mode. */
   private step = 0;
-  /** Index into the flap pool, chosen fresh each time the mouth opens. */
-  private variant = 0;
-  private flapCount = 0;
+  /** The motion this flap is using, chosen once as the mouth opens. */
+  private flap: Flap = { kind: "hingeLeft", tilt: 0 };
+  private sequence: SequencerState = initialState();
   /** Whether we are inside a flap, so each one picks its motion exactly once. */
   private flapping = false;
 
   reset(): void {
     this.smoothed = 0;
     this.step = 0;
-    this.variant = 0;
-    this.flapCount = 0;
+    this.flap = { kind: "hingeLeft", tilt: 0 };
+    this.sequence = initialState();
     this.flapping = false;
   }
 
-  /** Which motion the current flap is using. */
-  get flapVariant(): number {
-    return this.variant;
+  /** The motion the current flap is using. */
+  get currentFlap(): Flap {
+    return this.flap;
   }
 
   /** The smoothed value before quantisation, handy for meters. */
@@ -79,7 +80,9 @@ export class MouthMotion {
     // halfway through one.
     if (!this.flapping && target > CLOSED_LEVEL) {
       this.flapping = true;
-      this.chooseVariant(config);
+      const chosen = nextFlap(this.sequence, enabledFlaps(config), config.flapOrder);
+      this.flap = chosen.flap;
+      this.sequence = chosen.state;
     } else if (this.flapping && target <= 0 && this.smoothed < CLOSED_LEVEL) {
       this.flapping = false;
     }
@@ -92,27 +95,6 @@ export class MouthMotion {
 
     if (config.motionMode === "smooth") return clamp01(this.smoothed);
     return this.quantize(clamp01(this.smoothed), config.snapSteps);
-  }
-
-  /**
-   * Take the next motion in turn, or a random one that is not the motion we
-   * have just used - repeating immediately is what makes "random" read as
-   * broken rather than varied.
-   */
-  private chooseVariant(config: AvatarConfig): void {
-    const size = flapPool(config.flapVariety).length;
-    if (size <= 1) {
-      this.variant = 0;
-      return;
-    }
-    this.flapCount += 1;
-    if (config.flapOrder === "cycle") {
-      this.variant = this.flapCount % size;
-      return;
-    }
-    let next = Math.floor(Math.random() * size);
-    if (next === this.variant) next = (next + 1 + Math.floor(Math.random() * (size - 1))) % size;
-    this.variant = next;
   }
 
   /** Noise gate plus the activity-scaled loudness span. */

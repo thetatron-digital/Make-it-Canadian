@@ -7,7 +7,8 @@ import { LevelMeter } from "./LevelMeter";
 import { SuccessPanel } from "./SuccessPanel";
 import { Field, FineTune, Row, Segmented, SiteHeader, Slider, Step, Toggle, Window } from "./ui";
 import { resolveDevice } from "@/lib/audio";
-import { MAX_VARIETY, flapLabel, flapPool } from "@/lib/flap";
+import { ALL_FLAPS, FLAP_LABELS, type FlapKind } from "@/lib/flap";
+import { describeMix } from "@/lib/sequence";
 import { useAvatarImage } from "@/lib/useAvatarImage";
 import { useMouthDriver } from "@/lib/useMouthDriver";
 import {
@@ -16,7 +17,6 @@ import {
   LIMITS,
   type AvatarConfig,
   type BackgroundMode,
-  type HingeSide,
   type FlapOrder,
   type MotionMode,
 } from "@/lib/types";
@@ -35,19 +35,19 @@ const PRESETS: { id: string; label: string; blurb: string; values: Partial<Avata
     id: "calm",
     label: "Calm",
     blurb: "Opens for speech, ignores the rest.",
-    values: { motionMode: "snap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 200, flapVariety: 1 },
+    values: { motionMode: "snap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 200, flapMotions: ["hingeLeft"] },
   },
   {
     id: "chatty",
     label: "Chatty",
     blurb: "The classic flap. A good place to start.",
-    values: { motionMode: "snap", snapSteps: 2, activity: 50, attackMs: 40, releaseMs: 120, flapVariety: 2 },
+    values: { motionMode: "snap", snapSteps: 2, activity: 50, attackMs: 40, releaseMs: 120, flapMotions: ["hingeLeft", "hingeRight"] },
   },
   {
     id: "clack",
     label: "Click-clack",
     blurb: "Jumps on every syllable, three different ways.",
-    values: { motionMode: "snap", snapSteps: 4, activity: 85, attackMs: 15, releaseMs: 70, flapVariety: 3 },
+    values: { motionMode: "snap", snapSteps: 4, activity: 85, attackMs: 15, releaseMs: 70, flapMotions: ["hingeLeft", "hingeRight", "lift"] },
   },
 ];
 
@@ -101,7 +101,7 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
     config ?? ({ ...DEFAULT_CONFIG, imageUrl: "", imageWidth: 1, imageHeight: 1 } as AvatarConfig),
     simulate,
   );
-  const { openRef, levelRef, variantRef, micState, devices, refreshDevices, startMic } = driver;
+  const { openRef, levelRef, flapRef, micState, devices, refreshDevices, startMic } = driver;
 
   // Show the device list up front: picking the right microphone is the one
   // step people get wrong, and an empty dropdown does not help them.
@@ -246,8 +246,16 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
   }
 
   const liveUrl = savedId && typeof window !== "undefined" ? `${window.location.origin}/live/${savedId}` : "";
+  const enabledMotions = config.flapMotions as FlapKind[];
   const activePreset = PRESETS.find((preset) =>
-    Object.entries(preset.values).every(([key, value]) => config[key as keyof AvatarConfig] === value),
+    Object.entries(preset.values).every(([key, value]) => {
+      const current = config[key as keyof AvatarConfig];
+      // The motion list is an array, so it needs comparing by contents.
+      if (Array.isArray(value) || Array.isArray(current)) {
+        return JSON.stringify(current) === JSON.stringify(value);
+      }
+      return current === value;
+    }),
   );
 
   return (
@@ -262,7 +270,7 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
               bounds={loaded.bounds}
               config={config}
               openValueRef={openRef}
-              variantRef={variantRef}
+              flapRef={flapRef}
               interactive={openStep === 1}
               showTransparencyGrid={config.background === "transparent"}
               onSplitDrag={(splitY) => update({ splitY })}
@@ -306,7 +314,11 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
                 onChange={(value) => update({ splitY: value / 100 })}
               />
             </Field>
-            <Field label="Tilt" value={`${config.splitAngle}°`} hint="A crooked mouth looks more alive.">
+            <Field
+              label="Tilt"
+              value={`${config.splitAngle}°`}
+              hint="A crooked mouth looks more alive. The red dots show which corners it can pivot from — choose those in step 3."
+            >
               <Slider
                 ariaLabel="Split angle"
                 min={LIMITS.splitAngle.min}
@@ -315,18 +327,6 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
                 onChange={(value) => update({ splitAngle: Math.abs(value) < ANGLE_SNAP ? 0 : value })}
               />
             </Field>
-            <Row label="Hinge" hint="The corner that stays put.">
-              <Segmented<HingeSide>
-                ariaLabel="Hinge side"
-                value={config.hingeSide}
-                onChange={(hingeSide) => update({ hingeSide })}
-                options={[
-                  { value: "left", label: "Left" },
-                  { value: "center", label: "Middle" },
-                  { value: "right", label: "Right" },
-                ]}
-              />
-            </Row>
             <FineTune>
               <Field label="How wide it opens" value={`${config.maxOpenAngle}°`}>
                 <Slider
@@ -469,48 +469,64 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
               </div>
             </div>
 
-            <Field
-              label="How many ways it moves"
-              value={config.flapVariety}
-              hint="Each flap uses the next movement in the list, so the mouth stops looking like one hinge opening and shutting."
-            >
-              <Slider
-                ariaLabel="Movement variety"
-                min={LIMITS.flapVariety.min}
-                max={LIMITS.flapVariety.max}
-                value={config.flapVariety}
-                onChange={(flapVariety) => {
-                  update({ flapVariety });
-                  if (simulate === 0) setSimulate(0.85);
-                }}
-              />
-              <ul className="mt-1 space-y-1">
-                {flapPool(MAX_VARIETY).map((kind, index) => {
-                  const on = index < config.flapVariety;
-                  const { label, blurb } = flapLabel(kind, config.hingeSide);
+            <div className="row-stack">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="row-label">Ways it can move</span>
+                <span className="row-value">{enabledMotions.length} on</span>
+              </div>
+              <div className="grid gap-2">
+                {ALL_FLAPS.map((kind) => {
+                  const on = enabledMotions.includes(kind);
+                  const onlyOne = on && enabledMotions.length === 1;
                   return (
-                    <li key={kind} className={`flex gap-2 text-[13px] leading-snug ${on ? "" : "opacity-40"}`}>
-                      <span aria-hidden className={`font-display text-[10px] ${on ? "text-maple" : "text-quiet"}`}>
-                        {on ? "●" : "○"}
+                    <button
+                      key={kind}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      disabled={onlyOne}
+                      onClick={() => {
+                        const next = on
+                          ? enabledMotions.filter((m) => m !== kind)
+                          : [...enabledMotions, kind];
+                        update({ flapMotions: ALL_FLAPS.filter((m) => next.includes(m)) });
+                        if (simulate === 0) setSimulate(0.85);
+                      }}
+                      className={`flex items-start gap-3 rounded-lg border-[1.5px] px-3 py-2.5 text-left transition ${
+                        on ? "border-ink bg-blush shadow-key" : "border-hair bg-paper hover:border-ink"
+                      } ${onlyOne ? "cursor-not-allowed" : ""}`}
+                    >
+                      <span
+                        aria-hidden
+                        className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border-[1.5px] border-ink text-[11px] font-bold ${
+                          on ? "bg-maple text-paper" : "bg-paper text-transparent"
+                        }`}
+                      >
+                        ✓
                       </span>
                       <span>
-                        <strong className="font-semibold">{label}</strong> — {blurb}
+                        <span className="block text-[15px] font-semibold">{FLAP_LABELS[kind].label}</span>
+                        <span className="block hint">{FLAP_LABELS[kind].blurb}</span>
                       </span>
-                    </li>
+                    </button>
                   );
                 })}
-              </ul>
-            </Field>
+              </div>
+              <p className="hint">
+                {describeMix(enabledMotions)} Straight up is the only one allowed twice running — it is what breaks up a
+                run of corners, and it gets more likely whenever one repeats.
+              </p>
+            </div>
 
-            {config.flapVariety > 1 && (
-              <Row label="Order" hint="In turn is rhythmic. Shuffled is less predictable.">
+            {enabledMotions.length > 1 && (
+              <Row label="Order" hint="Natural keeps it balanced. In turn is a strict rotation.">
                 <Segmented<FlapOrder>
                   ariaLabel="Flap order"
                   value={config.flapOrder}
                   onChange={(flapOrder) => update({ flapOrder })}
                   options={[
+                    { value: "natural", label: "Natural" },
                     { value: "cycle", label: "In turn" },
-                    { value: "shuffle", label: "Shuffled" },
                   ]}
                 />
               </Row>

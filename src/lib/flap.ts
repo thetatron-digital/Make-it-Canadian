@@ -1,66 +1,42 @@
 import { Box, Point, hingePoint, splitLine, splitPieces } from "./geometry";
-import type { AvatarConfig, HingeSide } from "./types";
+import type { AvatarConfig } from "./types";
 
 /**
  * The ways the top piece can move on a single flap.
  *
- * A mouth that always pivots from the same corner reads as a machine after
- * about ten seconds. Giving each flap its own motion is what makes it look
- * like someone talking rather than a hinge opening.
+ * Deliberately concrete rather than abstract slots: the user ticks the ones
+ * they want, so "left corner" always means the left corner.
  */
-export type FlapKind = "primary" | "secondary" | "lift" | "tertiary" | "swing";
+export type FlapKind = "hingeLeft" | "hingeRight" | "middle" | "lift";
 
-/**
- * Ordered so raising the variety dial by one always adds the next most
- * useful motion. The first is whichever hinge the user picked, so variety 1
- * is exactly the original single-hinge look.
- */
-export const FLAP_ORDER: FlapKind[] = ["primary", "secondary", "lift", "tertiary", "swing"];
+export const ALL_FLAPS: FlapKind[] = ["hingeLeft", "hingeRight", "lift", "middle"];
 
-export const MAX_VARIETY = FLAP_ORDER.length;
-
-/**
- * The three pivots, starting from the one the user chose. Naming the slots
- * by position rather than by a fixed side is what keeps them distinct: with
- * a centre hinge, "your hinge" and "the seesaw" would otherwise be the same
- * motion, and the variety dial would quietly stop adding anything.
- */
-function sideOrder(side: HingeSide): HingeSide[] {
-  if (side === "left") return ["left", "right", "center"];
-  if (side === "right") return ["right", "left", "center"];
-  return ["center", "left", "right"];
-}
-
-/** Which pivot a hinge-based motion uses, or null when it does not pivot. */
-export function hingeSideFor(kind: FlapKind, chosen: HingeSide): HingeSide | null {
-  const order = sideOrder(chosen);
-  if (kind === "primary") return order[0];
-  if (kind === "secondary") return order[1];
-  if (kind === "tertiary") return order[2];
-  return null;
-}
-
-const SIDE_WORDS: Record<HingeSide, { label: string; blurb: string }> = {
-  left: { label: "Left corner", blurb: "Pivots at the left, so the right side lifts." },
-  right: { label: "Right corner", blurb: "Pivots at the right, so the left side lifts." },
-  center: { label: "Middle", blurb: "Pivots in the centre: one side up, the other down." },
+export const FLAP_LABELS: Record<FlapKind, { label: string; blurb: string }> = {
+  hingeLeft: { label: "Left corner", blurb: "Pivots at the left, so the right side lifts." },
+  hingeRight: { label: "Right corner", blurb: "Pivots at the right, so the left side lifts." },
+  lift: { label: "Straight up", blurb: "Lifts with a slight lean, leaving an even gap." },
+  middle: { label: "Middle", blurb: "Pivots in the centre: one side up, the other down." },
 };
 
-/** What to call a motion, given the hinge the user picked. */
-export function flapLabel(kind: FlapKind, chosen: HingeSide): { label: string; blurb: string } {
-  if (kind === "lift") {
-    return { label: "Straight up", blurb: "No pivot at all — the top lifts, leaving an even gap." };
-  }
-  if (kind === "swing") {
-    return { label: "Lift and tilt", blurb: "Rises and pivots at the same time." };
-  }
-  return SIDE_WORDS[hingeSideFor(kind, chosen) ?? chosen];
+/** Straight up is the neutral move; everything else pivots about a corner. */
+export function isHinge(kind: FlapKind): boolean {
+  return kind !== "lift";
 }
 
-/** The motions in play at a given variety setting. */
-export function flapPool(variety: number): FlapKind[] {
-  const count = Math.min(MAX_VARIETY, Math.max(1, Math.round(variety)));
-  return FLAP_ORDER.slice(0, count);
+/** Which way a motion pushes the mouth: left, right, or neither. */
+export function leanOf(kind: FlapKind): number {
+  if (kind === "hingeLeft") return -1;
+  if (kind === "hingeRight") return 1;
+  return 0;
+}
+
+/** How much of the open angle a straight lift may lean, at full tilt. */
+const LIFT_TILT_SHARE = 0.45;
+
+export function enabledFlaps(config: AvatarConfig): FlapKind[] {
+  const chosen = ALL_FLAPS.filter((kind) => config.flapMotions.includes(kind));
+  // Never leave the mouth with nothing to do.
+  return chosen.length > 0 ? chosen : ["hingeLeft"];
 }
 
 /**
@@ -75,11 +51,6 @@ export interface FlapMotion {
 }
 
 const NO_OFFSET: Point = { x: 0, y: 0 };
-
-/** A left hinge lifts the right-hand side, and vice versa. */
-function directionFor(side: HingeSide): number {
-  return side === "right" ? 1 : -1;
-}
 
 /** Length of the split line where it crosses the artwork. */
 function edgeLength(config: AvatarConfig): number {
@@ -98,18 +69,29 @@ function liftDirection(config: AvatarConfig): Point {
  * Work out the displacement for one flap.
  *
  * @param openValue 0-1, how far through the flap we are.
+ * @param tilt      -1..1, the lean this particular flap was given. Only a
+ *                  straight lift uses it: a perfectly parallel lift every
+ *                  time looks mechanical, and a little lean reads as a head
+ *                  moving without turning the lift into another hinge.
  */
-export function flapMotion(kind: FlapKind, config: AvatarConfig, bounds: Box, openValue: number): FlapMotion {
-  const full = (config.maxOpenAngle * Math.PI) / 180 * openValue;
-  const side = config.hingeSide;
+export function flapMotion(
+  kind: FlapKind,
+  config: AvatarConfig,
+  bounds: Box,
+  openValue: number,
+  tilt = 0,
+): FlapMotion {
+  const full = ((config.maxOpenAngle * Math.PI) / 180) * openValue;
 
   switch (kind) {
-    case "primary":
-    case "secondary":
-    case "tertiary": {
-      const pivot = hingeSideFor(kind, side) ?? side;
-      return { pivot: hingePoint(config, bounds, pivot), angle: directionFor(pivot) * full, offset: NO_OFFSET };
-    }
+    case "hingeLeft":
+      return { pivot: hingePoint(config, bounds, "left"), angle: -full, offset: NO_OFFSET };
+
+    case "hingeRight":
+      return { pivot: hingePoint(config, bounds, "right"), angle: full, offset: NO_OFFSET };
+
+    case "middle":
+      return { pivot: hingePoint(config, bounds, "center"), angle: -full, offset: NO_OFFSET };
 
     case "lift": {
       // Travel matched to how far a hinged flap's midpoint would move, so a
@@ -118,17 +100,7 @@ export function flapMotion(kind: FlapKind, config: AvatarConfig, bounds: Box, op
       const direction = liftDirection(config);
       return {
         pivot: hingePoint(config, bounds, "center"),
-        angle: 0,
-        offset: { x: direction.x * distance, y: direction.y * distance },
-      };
-    }
-
-    case "swing": {
-      const distance = (edgeLength(config) / 4) * Math.sin(full);
-      const direction = liftDirection(config);
-      return {
-        pivot: hingePoint(config, bounds, side),
-        angle: directionFor(side) * full * 0.6,
+        angle: full * LIFT_TILT_SHARE * tilt,
         offset: { x: direction.x * distance, y: direction.y * distance },
       };
     }
@@ -160,9 +132,9 @@ export interface Padding {
  * wide-open mouth is never clipped, and the OBS source size is derived from
  * it for the same reason.
  *
- * Every motion in the pool is measured, not just the current one: the
- * mouth may pick any of them mid-stream, and a canvas sized for a pivot
- * would crop a straight lift.
+ * Every enabled motion is measured at its worst case, not just the current
+ * one: the mouth may pick any of them mid-stream, and a canvas sized for a
+ * pivot would crop a lift.
  */
 export function renderPadding(config: AvatarConfig, bounds: Box): Padding {
   const { top } = splitPieces(config);
@@ -170,21 +142,23 @@ export function renderPadding(config: AvatarConfig, bounds: Box): Padding {
   const h = config.imageHeight;
   const pad: Padding = { left: 0, right: 0, top: 0, bottom: 0 };
 
-  for (const kind of flapPool(config.flapVariety)) {
-    const motion = flapMotion(kind, config, bounds, 1);
-    // Both directions: a seesaw sends one side down as the other goes up.
-    for (const sign of [1, -1]) {
-      const signed: FlapMotion = {
-        pivot: motion.pivot,
-        angle: motion.angle * sign,
-        offset: { x: motion.offset.x * sign, y: motion.offset.y * sign },
-      };
-      for (const corner of top) {
-        const moved = applyFlap(signed, corner);
-        pad.left = Math.max(pad.left, -moved.x);
-        pad.right = Math.max(pad.right, moved.x - w);
-        pad.top = Math.max(pad.top, -moved.y);
-        pad.bottom = Math.max(pad.bottom, moved.y - h);
+  for (const kind of enabledFlaps(config)) {
+    for (const tilt of kind === "lift" ? [-1, 1] : [0]) {
+      const motion = flapMotion(kind, config, bounds, 1, tilt);
+      // Both directions: a middle pivot sends one side down as the other rises.
+      for (const sign of [1, -1]) {
+        const signed: FlapMotion = {
+          pivot: motion.pivot,
+          angle: motion.angle * sign,
+          offset: { x: motion.offset.x * sign, y: motion.offset.y * sign },
+        };
+        for (const corner of top) {
+          const moved = applyFlap(signed, corner);
+          pad.left = Math.max(pad.left, -moved.x);
+          pad.right = Math.max(pad.right, moved.x - w);
+          pad.top = Math.max(pad.top, -moved.y);
+          pad.bottom = Math.max(pad.bottom, moved.y - h);
+        }
       }
     }
   }

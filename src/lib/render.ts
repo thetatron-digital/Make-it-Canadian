@@ -1,13 +1,6 @@
 import { Box, Point, Polygon, polygonPath, splitPieces } from "./geometry";
-import {
-  FlapKind,
-  FlapMotion,
-  Padding,
-  applyFlap,
-  flapMotion,
-  flapPool,
-  renderSize,
-} from "./flap";
+import { FlapKind, FlapMotion, Padding, applyFlap, enabledFlaps, flapMotion, renderSize } from "./flap";
+import type { Flap } from "./sequence";
 import type { AvatarConfig } from "./types";
 
 export type AvatarImage = HTMLImageElement | ImageBitmap | HTMLCanvasElement;
@@ -25,7 +18,7 @@ interface Derived {
 function derive(config: AvatarConfig, bounds: Box): Derived {
   const { top, bottom, edge } = splitPieces(config);
   const { width, height, pad } = renderSize(config, bounds);
-  return { top, bottom, edge, pool: flapPool(config.flapVariety), pad, width, height };
+  return { top, bottom, edge, pool: enabledFlaps(config), pad, width, height };
 }
 
 /**
@@ -64,14 +57,14 @@ export class AvatarScene {
    * Draws one frame.
    *
    * @param openValue 0-1, how far open the mouth is.
-   * @param variant   Which motion this flap is using, indexed into the pool.
+   * @param flap      Which motion this flap is using, and its lean.
    * @param timeSec   Seconds since the loop started, drives the idle sway.
    * @param scale     Extra scale applied on top of the device pixel ratio.
    */
   draw(
     ctx: CanvasRenderingContext2D,
     openValue: number,
-    variant: number,
+    flap: Flap,
     timeSec: number,
     dpr: number,
     scale: number,
@@ -94,8 +87,9 @@ export class AvatarScene {
     ctx.save();
     this.applySway(ctx, timeSec);
 
-    const kind = pool[Math.min(pool.length - 1, Math.max(0, variant))] ?? "primary";
-    const motion = flapMotion(kind, config, this.bounds, openValue);
+    // Fall back to an enabled motion if the chosen one was just switched off.
+    const kind = pool.includes(flap.kind) ? flap.kind : pool[0];
+    const motion = flapMotion(kind, config, this.bounds, openValue, flap.tilt);
     const moving = Math.abs(motion.angle) > 1e-4 || Math.hypot(motion.offset.x, motion.offset.y) > 0.01;
 
     // 1. Bottom piece, untouched.

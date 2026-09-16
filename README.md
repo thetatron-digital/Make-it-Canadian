@@ -59,36 +59,53 @@ ids, hex colours and measured values are all monospace.
 
 ## How the mouth moves
 
-A mouth that always pivots from the same corner reads as a hinge after
-about ten seconds. So a flap is not one motion but a choice from a pool,
-made fresh each time the mouth leaves shut and held steady until it closes
-again. "How many ways it moves" sets the size of that pool:
+Watching Terrance and Phillip, the mouth rarely does the same thing twice
+running: left, right, up, left, up, right. That sequence, not the set of
+motions, is what makes it read as talking. So a flap is a choice made fresh
+each time the mouth leaves shut, held steady until it closes again, from
+whichever motions are ticked:
 
-| # | Motion | What it does |
-| --- | --- | --- |
-| 1 | Your hinge | Pivots at the corner you chose. |
-| 2 | The next corner | Pivots at a different corner, so the other side lifts. |
-| 3 | Straight up | No pivot at all — the top lifts, leaving an even gap. |
-| 4 | The third corner | The remaining pivot, including the middle seesaw. |
-| 5 | Lift and tilt | Rises and pivots at once. |
+| Motion | What it does |
+| --- | --- |
+| Left corner | Pivots at the left, so the right side lifts. |
+| Right corner | Pivots at the right, so the left side lifts. |
+| Straight up | Lifts with a slight lean, leaving an even gap. |
+| Middle | Pivots in the centre: one side up, the other down. |
 
-The slots are named by position rather than by a fixed side, which is what
-keeps them distinct: with a centre hinge, "your hinge" and "the seesaw"
-would otherwise be the same motion and the dial would quietly stop adding
-anything. Variety 1 is exactly the original single-hinge look, so nothing
-changes for avatars that do not ask for it.
+Two rules drive the choice, in `src/lib/sequence.ts`:
+
+**A corner almost never repeats; a straight lift happily can.** A lift is
+the neutral move, so two in a row still reads as talking, whereas the same
+corner twice reads as a stuck hinge. The weights put corner repeats at
+under 2% and lift repeats near 10%, which keeps lifts the thing that breaks
+up a run rather than the other way about.
+
+**The mouth stays balanced.** Every corner flap leans the jaw one way, and
+the next choice is weighted towards the other side; a lift lets the lean
+relax back. When a corner does repeat, the lift's weight is boosted for the
+next few flaps - measured, that lifts their share from 35% to 52% straight
+after a repeat, and it decays back.
+
+A straight lift is never perfectly parallel. It takes a small lean of its
+own, against whichever way the jaw is currently sitting, so lifts vary
+without turning into another hinge.
+
+The sequencer is pure, with its randomness injected, so the behaviour above
+is asserted over twenty thousand flaps rather than eyeballed: repeat rates,
+left/right skew under 1%, the post-repeat lift boost, and lean staying
+within range and averaging out.
 
 Every motion is expressed as one rotation about a pivot followed by one
-translation, so the renderer has a single path for all five. The mouth
+translation, so the renderer has a single path for all of them. The mouth
 interior follows suit: a pure pivot sweeps its edge along an arc, so the
-gap is a circular sector either side of the hinge — two of them, which is
-what makes a seesaw look right — while a motion that travels opens a
-quadrilateral between the resting edge and the moved one, which is exactly
-right for a straight lift.
+gap is a circular sector either side of the hinge - two of them, which is
+what makes the middle pivot look right - while a motion that travels opens
+a quadrilateral between the resting edge and the moved one, which is
+exactly right for a straight lift.
 
-Canvas padding is measured across the whole pool rather than the current
-motion, because the mouth may pick any of them mid-stream and a canvas
-sized for a pivot would crop a lift.
+Canvas padding is measured across every enabled motion at its worst case,
+including a lift at full lean, because the mouth may pick any of them
+mid-stream and a canvas sized for a pivot would crop a lift.
 
 ## Routes
 

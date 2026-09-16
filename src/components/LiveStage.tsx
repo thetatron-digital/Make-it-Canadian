@@ -19,7 +19,7 @@ export function LiveStage({ id }: { id: string }) {
   const [state, setState] = useState<LoadState>("loading");
   const { loaded } = useAvatarImage(config?.imageUrl ?? null);
   const driver = useMouthDriver(config ?? placeholder, 0);
-  const { openRef, variantRef, micState, startMic, refreshDevices } = driver;
+  const { openRef, flapRef, micState, startMic, refreshDevices } = driver;
 
   useEffect(() => {
     document.body.classList.add("live-surface");
@@ -104,7 +104,7 @@ export function LiveStage({ id }: { id: string }) {
           bounds={loaded.bounds}
           config={config}
           openValueRef={openRef}
-          variantRef={variantRef}
+          flapRef={flapRef}
           className="h-full w-full"
         />
       )}
