@@ -59,11 +59,29 @@ ids, hex colours and measured values are all monospace.
 
 ## How the mouth moves
 
-Watching Terrance and Phillip, the mouth rarely does the same thing twice
-running: left, right, up, left, up, right. That sequence, not the set of
-motions, is what makes it read as talking. So a flap is a choice made fresh
-each time the mouth leaves shut, held steady until it closes again, from
-whichever motions are ticked:
+### Flapping, not following
+
+There are two ways to drive a mouth from a microphone and they look nothing
+alike.
+
+Following the envelope - opening as far as the voice is loud, and staying
+there while the sound continues - is what a VU meter does. It leaves the
+mouth hanging half open through every held syllable, which is the single
+thing that stops a rig reading as a cartoon.
+
+Flapping is what the cartoon does. Each sound fires one complete
+open-and-shut: the mouth is always either on its way open or on its way
+shut, and it always reaches fully closed before the next flap begins. The
+closing is the look, so `flap` is the default. `hold` keeps the old
+envelope behaviour for anyone who wants it, and `smooth` is the same
+without the steps.
+
+Each flap also picks how far it opens, from the positions allowed by "how
+many mouth positions". Loudness decides which is most likely, but the
+opening the previous flap used is taken off the table entirely, so two
+flaps running never land on the same degree while any alternative exists.
+
+### Which way it moves
 
 | Motion | What it does |
 | --- | --- |

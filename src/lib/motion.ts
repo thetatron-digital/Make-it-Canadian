@@ -38,16 +38,33 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 /**
  * Turns a raw microphone level into the 0-1 amount the mouth is open.
  *
- * Chain: noise gate -> loudness span scaled by activity -> attack/release
- * smoothing -> quantise to the chosen number of mouth positions. Keeping it
- * in one place means the simulate slider in the editor drives exactly the
- * same maths as a real microphone does on the live page.
+ * There are two ways to do this and they look completely different.
+ *
+ * Following the envelope - opening as far as the voice is loud and staying
+ * there while the sound continues - is what a VU meter does, and it leaves
+ * the mouth hanging half open through every held syllable.
+ *
+ * Flapping is what the cartoon does: each sound fires one complete
+ * open-and-shut, to a degree chosen for that flap. The mouth is always
+ * either on its way open or on its way shut, and it always returns to fully
+ * closed before the next one starts. That closing is the whole look, so it
+ * is the default.
  */
+type Phase = "idle" | "opening" | "closing";
+
 export class MouthMotion {
-  /** Continuous, pre-quantisation value. */
+  /** Continuous, pre-quantisation value. Envelope modes only. */
   private smoothed = 0;
-  /** Which discrete position the mouth currently sits on, in snap mode. */
+  /** Which discrete position the mouth currently sits on, in hold mode. */
   private step = 0;
+  /** Where this flap is in its open-and-shut cycle. */
+  private phase: Phase = "idle";
+  /** How far open this particular flap goes. */
+  private target = 1;
+  /** Current opening, driven by the phase rather than the envelope. */
+  private value = 0;
+  /** Which degree the last flap used, so consecutive flaps differ. */
+  private lastDegree = -1;
   /** The motion this flap is using, chosen once as the mouth opens. */
   private flap: Flap = { kind: "hingeLeft", tilt: 0 };
   private sequence: SequencerState = initialState();
@@ -60,6 +77,10 @@ export class MouthMotion {
     this.flap = { kind: "hingeLeft", tilt: 0 };
     this.sequence = initialState();
     this.flapping = false;
+    this.phase = "idle";
+    this.target = 1;
+    this.value = 0;
+    this.lastDegree = -1;
   }
 
   /** The motion the current flap is using. */
@@ -73,7 +94,90 @@ export class MouthMotion {
   }
 
   update(level: number, dtMs: number, config: AvatarConfig): number {
-    const target = this.gate(level, config);
+    const drive = this.gate(level, config);
+    if (config.motionMode === "flap") return this.flapCycle(drive, dtMs, config);
+    return this.followEnvelope(drive, dtMs, config);
+  }
+
+  /**
+   * One complete open-and-shut per sound. A flap runs to the end once it
+   * has begun, even if the speaker stops mid-word, so the mouth can never
+   * be left hanging open.
+   */
+  private flapCycle(drive: number, dtMs: number, config: AvatarConfig): number {
+    const scale = activityTimeScale(config.activity);
+
+    if (this.phase === "idle") {
+      if (drive <= CLOSED_LEVEL) {
+        this.value = 0;
+        return 0;
+      }
+      this.beginFlap(drive, config);
+    }
+
+    if (this.phase === "opening") {
+      const rate = this.target / Math.max(1, config.attackMs * scale);
+      this.value += rate * Math.max(0, dtMs);
+      if (this.value >= this.target) {
+        this.value = this.target;
+        this.phase = "closing";
+      }
+    } else if (this.phase === "closing") {
+      const rate = this.target / Math.max(1, config.releaseMs * scale);
+      this.value -= rate * Math.max(0, dtMs);
+      if (this.value <= 0) {
+        this.value = 0;
+        this.phase = "idle";
+        this.flapping = false;
+      }
+    }
+
+    return clamp01(this.value);
+  }
+
+  /** Start a flap: pick how it moves, and how far it opens. */
+  private beginFlap(drive: number, config: AvatarConfig): void {
+    const chosen = nextFlap(this.sequence, enabledFlaps(config), config.flapOrder);
+    this.flap = chosen.flap;
+    this.sequence = chosen.state;
+    this.target = this.chooseDegree(drive, config);
+    this.phase = "opening";
+    this.flapping = true;
+  }
+
+  /**
+   * How far this flap opens, picked from the allowed positions. Loudness
+   * decides which is most likely, but the degree the last flap used is
+   * taken off the table entirely, so two flaps running never land on the
+   * same opening while there is any alternative.
+   */
+  private chooseDegree(drive: number, config: AvatarConfig): number {
+    const steps = Math.max(2, Math.round(config.snapSteps));
+    const degrees = steps - 1;
+    if (degrees <= 1) {
+      this.lastDegree = 1;
+      return 1;
+    }
+
+    const ideal = Math.min(degrees, Math.max(1, Math.round(clamp01(drive) * degrees)));
+    let best = -1;
+    let bestScore = -Infinity;
+    for (let i = 1; i <= degrees; i++) {
+      if (i === this.lastDegree) continue;
+      // Closest to the loudness wins, with a nudge so it is not rigid.
+      const score = -Math.abs(i - ideal) + Math.random() * 0.9;
+      if (score > bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    }
+    this.lastDegree = best;
+    return best / degrees;
+  }
+
+  /** The older behaviour: track the voice and hold where it lands. */
+  private followEnvelope(drive: number, dtMs: number, config: AvatarConfig): number {
+    const target = drive;
     // A flap runs from the mouth leaving shut to it settling back. Picking
     // the motion on that leading edge keeps it steady for the whole flap,
     // and the two thresholds stop a wavering signal from swapping motions

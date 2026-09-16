@@ -1,5 +1,10 @@
 export type HingeSide = "left" | "right" | "center";
-export type MotionMode = "smooth" | "snap";
+/**
+ * "flap" fires one complete open-and-shut per sound, always returning to
+ * fully closed. "hold" follows the voice and stays where it lands, which is
+ * how this used to behave. "smooth" is the same but without the steps.
+ */
+export type MotionMode = "flap" | "hold" | "smooth";
 export type FlapOrder = "natural" | "cycle";
 export type FlapKindName = "hingeLeft" | "hingeRight" | "middle" | "lift";
 export type BackgroundMode = "transparent" | "green" | "custom";
@@ -76,8 +81,8 @@ export const DEFAULT_CONFIG: Omit<AvatarConfig, "imageUrl" | "imageWidth" | "ima
   threshold: 0.06,
   attackMs: 40,
   releaseMs: 120,
-  motionMode: "snap",
-  snapSteps: 2,
+  motionMode: "flap",
+  snapSteps: 3,
   activity: 50,
   mouthInterior: true,
   mouthColor: "#000000",
@@ -174,7 +179,9 @@ export function normalizeConfig(raw: unknown): AvatarConfig | null {
     threshold: num(r.threshold, d.threshold, LIMITS.threshold.min, LIMITS.threshold.max),
     attackMs: num(r.attackMs, d.attackMs, LIMITS.attackMs.min, LIMITS.attackMs.max),
     releaseMs: num(r.releaseMs, d.releaseMs, LIMITS.releaseMs.min, LIMITS.releaseMs.max),
-    motionMode: (motionMode === "smooth" ? "smooth" : "snap") as MotionMode,
+    // "snap" was the old name for what was meant to be the cartoon flap but
+    // behaved as a hold, so saved avatars move across to the real thing.
+    motionMode: (motionMode === "smooth" ? "smooth" : motionMode === "hold" ? "hold" : "flap") as MotionMode,
     snapSteps: Math.round(num(r.snapSteps, d.snapSteps, LIMITS.snapSteps.min, LIMITS.snapSteps.max)),
     activity: num(r.activity, d.activity, LIMITS.activity.min, LIMITS.activity.max),
     mouthInterior: typeof r.mouthInterior === "boolean" ? r.mouthInterior : d.mouthInterior,

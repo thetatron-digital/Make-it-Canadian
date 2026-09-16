@@ -35,19 +35,19 @@ const PRESETS: { id: string; label: string; blurb: string; values: Partial<Avata
     id: "calm",
     label: "Calm",
     blurb: "Opens for speech, ignores the rest.",
-    values: { motionMode: "snap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 200, flapMotions: ["hingeLeft"] },
+    values: { motionMode: "flap", snapSteps: 2, activity: 25, attackMs: 70, releaseMs: 220, flapMotions: ["hingeLeft", "lift"] },
   },
   {
     id: "chatty",
     label: "Chatty",
     blurb: "The classic flap. A good place to start.",
-    values: { motionMode: "snap", snapSteps: 2, activity: 50, attackMs: 40, releaseMs: 120, flapMotions: ["hingeLeft", "hingeRight"] },
+    values: { motionMode: "flap", snapSteps: 3, activity: 50, attackMs: 45, releaseMs: 130, flapMotions: ["hingeLeft", "hingeRight", "lift"] },
   },
   {
     id: "clack",
     label: "Click-clack",
     blurb: "Jumps on every syllable, three different ways.",
-    values: { motionMode: "snap", snapSteps: 4, activity: 85, attackMs: 15, releaseMs: 70, flapMotions: ["hingeLeft", "hingeRight", "lift"] },
+    values: { motionMode: "flap", snapSteps: 5, activity: 85, attackMs: 18, releaseMs: 65, flapMotions: ["hingeLeft", "hingeRight", "lift", "middle"] },
   },
 ];
 
@@ -533,25 +533,29 @@ export function Editor({ initialId, initialConfig }: { initialId?: string; initi
             )}
 
             <FineTune>
-              <Row label="Movement" hint="Snapping is the cartoon look.">
+              <Row
+                label="Movement"
+                hint="Flap opens and shuts fully every time — the cartoon look. Hold stays open while you hold a sound."
+              >
                 <Segmented<MotionMode>
                   ariaLabel="Motion mode"
                   value={config.motionMode}
                   onChange={(motionMode) => update({ motionMode })}
                   options={[
-                    { value: "snap", label: "Snap" },
+                    { value: "flap", label: "Flap" },
+                    { value: "hold", label: "Hold" },
                     { value: "smooth", label: "Smooth" },
                   ]}
                 />
               </Row>
-              {config.motionMode === "snap" && (
+              {config.motionMode !== "smooth" && (
                 <Field
                   label="How many mouth positions"
                   value={config.snapSteps}
                   hint={
                     config.snapSteps === 2
-                      ? "Two: open and shut. The classic."
-                      : `${config.snapSteps} positions between shut and wide open.`
+                      ? "Shut and one opening. Every flap opens the same amount."
+                      : `Shut and ${config.snapSteps - 1} openings. A flap never reuses the opening the last one took.`
                   }
                 >
                   <Slider
