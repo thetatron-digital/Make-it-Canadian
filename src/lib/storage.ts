@@ -43,6 +43,23 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number 
   return { width, height };
 }
 
+/**
+ * Turn a Blob failure into something the person staring at the editor can
+ * act on. The two that actually happen during setup are a store created
+ * with Private access - this app needs Public, because OBS fetches the
+ * artwork with no token - and a stale or missing token.
+ */
+export function describeStorageError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/private|access|forbidden|not allowed/i.test(message)) {
+    return "The Blob store refused the upload. It was most likely created with Private access — this app needs a Public store, because OBS loads the artwork without a token. Create a public store and update BLOB_READ_WRITE_TOKEN.";
+  }
+  if (/token|unauthorized|401|invalid/i.test(message)) {
+    return "The Blob store token is missing or no longer valid. Check BLOB_READ_WRITE_TOKEN in the project settings, then redeploy.";
+  }
+  return "The image could not be saved. Try again in a moment.";
+}
+
 export async function saveAvatar(id: string, bytes: Uint8Array, origin: string): Promise<string> {
   if (hasBlob()) {
     const { put } = await import("@vercel/blob");

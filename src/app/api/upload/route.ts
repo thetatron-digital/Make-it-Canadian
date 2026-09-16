@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { newId, readPngSize, saveAvatar, storageUnavailableReason } from "@/lib/storage";
+import { describeStorageError, newId, readPngSize, saveAvatar, storageUnavailableReason } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +39,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ id, url, width: size.width, height: size.height });
   } catch (error) {
     console.error("avatar upload failed", error);
-    return NextResponse.json({ error: "The image could not be saved. Try again in a moment." }, { status: 500 });
+    return NextResponse.json({ error: describeStorageError(error) }, { status: 500 });
   }
 }

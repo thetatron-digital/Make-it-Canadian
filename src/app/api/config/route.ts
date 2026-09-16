@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isValidId, newId, saveConfig, storageUnavailableReason } from "@/lib/storage";
+import { describeStorageError, isValidId, newId, saveConfig, storageUnavailableReason } from "@/lib/storage";
 import { normalizeConfig } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -32,6 +32,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ id });
   } catch (error) {
     console.error("config save failed", error);
-    return NextResponse.json({ error: "The settings could not be saved. Try again in a moment." }, { status: 500 });
+    return NextResponse.json({ error: describeStorageError(error) }, { status: 500 });
   }
 }
