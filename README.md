@@ -79,12 +79,63 @@ for development and loses everything on restart.
 
 ## Deploying
 
-Deploy to Vercel, then add a Blob store (Storage → Blob). That sets
-`BLOB_READ_WRITE_TOKEN` on the project, which is the only environment variable
-the app needs. Uploaded PNGs land in `avatars/<id>.png` and configs in
-`configs/<id>.json`. There is no database, no auth and no accounts: the id in
-the URL is the only key, which is why the app tells people to bookmark their
-editor link.
+Import the repository at [vercel.com/new](https://vercel.com/new). Next.js is
+detected automatically and there is nothing to configure. Then two settings
+have to be dealt with by hand, and neither is where you would expect on a
+phone, where the dashboard collapses its side navigation.
+
+**1. Turn off Vercel Authentication.** New projects enable it by default for
+every `*.vercel.app` URL. It is the single worst default for this app,
+because it fails invisibly: the page loads fine in your own browser, where
+you are signed in to Vercel, and shows a login wall inside OBS, which is a
+different browser with no session. You would go looking for a microphone
+bug that was never there.
+
+It lives on its own settings page, not under General:
+
+```
+/<team>/<project>/settings/deployment-protection
+```
+
+Set Vercel Authentication to Disabled. If your plan will not let you, note
+that protection never applies to custom domains, so attaching one and
+pointing OBS at that hostname works instead.
+
+**2. Give the project a public Blob store.** Storage is on the *account*
+page, not inside the project, which is why it is not in the project's tabs:
+
+```
+/<team>/~/stores
+```
+
+Create a Blob store and choose **Public** access. Vercel recommends Private,
+but private blobs need a signed token on every read and OBS has no token, so
+the avatars would never load. Public is correct here, and it is the tradeoff
+the app is built around: ids are unguessable, but anyone holding a link can
+view it. Access mode cannot be changed after creation.
+
+Connecting a store to a project only sets one variable. If the Connect
+Project control is not visible — it collapses out of the mobile layout —
+set it yourself from the store's Quickstart panel, `.env.local` tab:
+
+```
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+```
+
+Add that under the project's Settings → Environment Variables for all
+environments. Importing the repo may also have auto-created a store and set
+this variable already, since Vercel detects `@vercel/blob` in the manifest —
+check before creating a second one.
+
+**3. Redeploy.** Environment variables do not reach a deployment that
+already exists. Pushing a commit also works, and is easier from a phone than
+finding the redeploy menu.
+
+Until the token is in place, both write routes return a 503 naming the fix
+rather than pretending to save; the editor shows it in place. Uploaded PNGs
+land in `avatars/<id>.png` and configs in `configs/<id>.json`. There is no
+database, no auth and no accounts: the id in the URL is the only key, which
+is why the app tells people to bookmark their editor link.
 
 ## Scripts
 

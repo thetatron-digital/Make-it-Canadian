@@ -7,7 +7,17 @@ import { normalizeConfig, type AvatarConfig } from "./types";
 /** No look-alike characters: these ids get read aloud and retyped. */
 export const newId = customAlphabet("23456789abcdefghijkmnpqrstuvwxyz", 8);
 
-const hasBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+/**
+ * Read an environment variable at runtime. The dynamic key matters: a
+ * bundler can substitute a literal `process.env.FOO` with whatever it saw
+ * at build time, and a value that only exists at runtime would then be
+ * baked in as undefined.
+ */
+function readEnv(name: string): string | undefined {
+  return process.env[name];
+}
+
+const hasBlob = () => Boolean(readEnv("BLOB_READ_WRITE_TOKEN"));
 
 /**
  * The local-disk fallback is only honest on a developer's machine. On a
@@ -16,8 +26,14 @@ const hasBlob = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
  * refusing. Say so instead.
  */
 export function storageUnavailableReason(): string | null {
-  if (hasBlob() || !process.env.VERCEL) return null;
-  return "Saving is not set up on this deployment yet. Add a Blob store to the project in the Vercel dashboard (Storage → Blob → Connect), then redeploy.";
+  if (hasBlob() || !readEnv("VERCEL")) return null;
+  // Names only, never values, so the reason is visible in the runtime logs.
+  console.error("blob token missing at runtime", {
+    vercelEnv: readEnv("VERCEL_ENV") ?? null,
+    matchingKeys: Object.keys(process.env).filter((key) => /BLOB|STORAGE/i.test(key)),
+    totalKeys: Object.keys(process.env).length,
+  });
+  return "Saving is not set up on this deployment yet. On Vercel, Storage lives on the account page, not inside the project: create a Blob store there with Public access, then add its BLOB_READ_WRITE_TOKEN under the project's Settings → Environment Variables and redeploy. The README has the full walkthrough.";
 }
 
 const configPath = (id: string) => `configs/${id}.json`;
